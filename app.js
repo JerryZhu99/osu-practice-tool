@@ -132,6 +132,8 @@ function generateOszWithRate(osupath, rate = 1.33) {
       archive.pipe(output);
       archive.append(lines.join("\n"), { name: filename.replace(`[${difficulty}]`, `[${difficulty} ${rate}x]`) });
       archive.file("audio.mp3");
+      archive.glob(path.join("*.png"), { cwd: path.join(songsDirectory, dirname) });
+      archive.glob(path.join("*.jpg"), { cwd: path.join(songsDirectory, dirname) });
       archive.finalize();
       console.log("Done!");
     })
