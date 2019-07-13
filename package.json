@@ -1,0 +1,15 @@
+{
+  "name": "osu-ar-tool",
+  "version": "0.0.1",
+  "description": "",
+  "main": "app.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "",
+  "license": "UNLICENSED",
+  "dependencies": {
+    "archiver": "^3.0.0",
+    "iohook": "^0.5.1"
+  }
+}
