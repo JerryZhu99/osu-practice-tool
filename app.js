@@ -64,7 +64,7 @@ function generateOszWithRate(osupath, rate = 1.33) {
     let breaksIndex = lines.findIndex(e => e.startsWith("//Break Periods"))
     let breaksEndIndex = lines.findIndex(e => e.startsWith("//Storyboard Layer 0"))
     let timingPointsIndex = lines.findIndex(e => e.startsWith("[TimingPoints]"))
-    let coloursIndex = lines.findIndex(e => e.startsWith("[Colours]"))
+    let timingPointsEndIndex = lines.findIndex((e, i) => i > timingPointsIndex && e.startsWith("["))
     let hitObjectsIndex = lines.findIndex(e => e.startsWith("[HitObjects]"))
 
     lines = lines.map((l, index) => {
@@ -78,7 +78,7 @@ function generateOszWithRate(osupath, rate = 1.33) {
         return `PreviewTime:${Math.floor(previewTime / rate)}`;
       }
       if (l.startsWith("BeatmapID")) return "BeatmapID:0";
-      if (l.startsWith("SliderMultiplier")) return `SliderMultiplier:${(sliderMultiplier / rate).toFixed(2)}`;
+      // if (l.startsWith("SliderMultiplier")) return `SliderMultiplier:${sliderMultiplier * rate}`;
       if (l.trim() !== "") {
         // is a break
         if ((index > breaksIndex && index < breaksEndIndex)) {
@@ -87,9 +87,11 @@ function generateOszWithRate(osupath, rate = 1.33) {
         }
 
         // is a timing point
-        if ((index > timingPointsIndex && index < coloursIndex)) {
+        if ((index > timingPointsIndex && index < timingPointsEndIndex)) {
           let [time, msPerBeat, ...rest] = l.split(",");
-          return [Math.floor(parseInt(time) / rate), Math.floor(parseInt(msPerBeat) / rate), ...rest].join(",");
+          msPerBeat = parseFloat(msPerBeat);
+          if (msPerBeat > 0) msPerBeat = msPerBeat / rate;
+          return [Math.floor(parseInt(time) / rate), msPerBeat, ...rest].join(",");
         }
 
         // is a hitobject
