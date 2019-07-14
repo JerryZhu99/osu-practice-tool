@@ -1,13 +1,13 @@
 {
   "name": "osu-ar-tool",
   "version": "0.0.1",
-  "description": "",
+  "description": "A tool to quickly generate practice difficulties for osu!.",
   "main": "app.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "start": "node app.js"
   },
   "author": "",
-  "license": "UNLICENSED",
+  "license": "MIT",
   "dependencies": {
     "archiver": "^3.0.0",
     "iohook": "^0.5.1"
