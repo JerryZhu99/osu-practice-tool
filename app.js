@@ -15,6 +15,13 @@ function generateOszWithAR(osupath, ar = 0) {
     if (err) throw err;
     let lines = data.toString("UTF-8").split("\n");
 
+    if (!lines.some(e => e.startsWith("ApproachRate"))) {
+      // For older map without AR, insert AR after OD.
+      let odIndex = lines.findIndex(e => e.startsWith("OverallDifficulty"));
+      let od = lines[odIndex].split(":")[1].trim();
+      lines.splice(odIndex + 1, 0, `ApproachRate:${od}`)
+    }
+
     let difficulty = lines.find(e => e.startsWith("Version")).split(":")[1].trim();
     let approachRate = lines.find(e => e.startsWith("ApproachRate")).split(":")[1].trim();
 
@@ -204,6 +211,9 @@ ioHook.on("keypress", event => {
       let ar = event.rawcode - 48;
       generateOszWithAR(currentFile, ar);
     }
+  } else if (event.altKey && event.rawcode === 84 && currentFile) {
+    // Alt-T pressed, AR 10
+    generateOszWithAR(currentFile, 10);
   }
 });
 ioHook.start();
