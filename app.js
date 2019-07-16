@@ -104,8 +104,8 @@ function generateOszWithRate(osupath, rate = 1.33) {
         // is a hitobject
         if (index > hitObjectsIndex) {
           let [x, y, time, type, ...rest] = l.split(",");
-          if ((parseInt(type) & 8) > 0) {
-            rest[1] = "" + Math.round(parseInt(rest[1]) / rate);
+          if ((parseInt(type) & (8 | 128)) > 0) { // spinner (8) or mania hold note (128)
+            rest[1] = "" + Math.round(parseInt(rest[1]) / rate); // scale endTime;
           }
           return [x, y, Math.round(parseInt(time) / rate), type, ...rest].join(",");
         }
