@@ -47,7 +47,9 @@ function generateOszWithAR(osupath, ar = 0) {
       throw err;
     });
     archive.pipe(output);
-    archive.append(lines.join("\n"), { name: filename.replace(`[${difficulty}]`, `[${difficulty} AR${ar}]`) });
+    archive.append(lines.join("\n"), {
+      name: `${filename.substring(0, filename.lastIndexOf("]"))} AR${ar}].osu`
+    });
     archive.finalize();
     console.log("Done!");
   });
@@ -138,7 +140,9 @@ function generateOszWithRate(osupath, rate = 1.33) {
         throw err;
       });
       archive.pipe(output);
-      archive.append(lines.join("\n"), { name: filename.replace(`[${difficulty}]`, `[${difficulty} ${rate}x]`) });
+      archive.append(lines.join("\n"), {
+        name: `${filename.substring(0, filename.lastIndexOf("]"))} ${rate}x].osu`
+      });
       archive.file("audio.mp3");
       archive.glob(path.join("*.png"), { cwd: path.join(songsDirectory, dirname) });
       archive.glob(path.join("*.jpg"), { cwd: path.join(songsDirectory, dirname) });
