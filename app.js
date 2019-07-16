@@ -82,7 +82,7 @@ function generateOszWithRate(osupath, rate = 1.33) {
         return `AudioFilename: audio.mp3`;
       }
       if (l.startsWith("PreviewTime")) {
-        return `PreviewTime:${Math.floor(previewTime / rate)}`;
+        return `PreviewTime:${Math.round(previewTime / rate)}`;
       }
       if (l.startsWith("BeatmapID")) return "BeatmapID:0";
       // if (l.startsWith("SliderMultiplier")) return `SliderMultiplier:${sliderMultiplier * rate}`;
@@ -90,7 +90,7 @@ function generateOszWithRate(osupath, rate = 1.33) {
         // is a break
         if ((index > breaksIndex && index < breaksEndIndex)) {
           let [n, start, end] = l.split(",");
-          return [n, Math.floor(parseInt(start) / rate), Math.floor(parseInt(end) / rate)].join(",");
+          return [n, Math.round(parseInt(start) / rate), Math.round(parseInt(end) / rate)].join(",");
         }
 
         // is a timing point
@@ -98,17 +98,16 @@ function generateOszWithRate(osupath, rate = 1.33) {
           let [time, msPerBeat, ...rest] = l.split(",");
           msPerBeat = parseFloat(msPerBeat);
           if (msPerBeat > 0) msPerBeat = msPerBeat / rate;
-          return [Math.floor(parseInt(time) / rate), msPerBeat, ...rest].join(",");
+          return [Math.round(parseInt(time) / rate), msPerBeat, ...rest].join(",");
         }
 
         // is a hitobject
         if (index > hitObjectsIndex) {
           let [x, y, time, type, ...rest] = l.split(",");
           if ((parseInt(type) & 8) > 0) {
-            console.log(rest[1]);
-            rest[1] = "" + Math.floor(parseInt(rest[1]) / rate);
+            rest[1] = "" + Math.round(parseInt(rest[1]) / rate);
           }
-          return [x, y, Math.floor(parseInt(time) / rate), type, ...rest].join(",");
+          return [x, y, Math.round(parseInt(time) / rate), type, ...rest].join(",");
         }
       }
       return l;
