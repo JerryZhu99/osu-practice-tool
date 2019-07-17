@@ -2,6 +2,7 @@ const net = require('net');
 const fs = require('fs');
 const path = require('path');
 const { spawn } = require('child_process');
+const ffmpegPath = require('@ffmpeg-installer/ffmpeg').path;
 const archiver = require('archiver');
 const ioHook = require('iohook');
 
@@ -134,7 +135,7 @@ function generateOszWithRate(osupath, rate = 1.33) {
       `"atempo=${rate}"`,
       '-vn',
       `"audio.mp3"`];
-    let ffmpeg = spawn('ffmpeg', args, { windowsVerbatimArguments: true });
+    let ffmpeg = spawn(ffmpegPath, args, { windowsVerbatimArguments: true });
 
     ffmpeg.on('exit', (statusCode) => {
       if (statusCode === 0) {
@@ -226,6 +227,7 @@ ioHook.on("keypress", event => {
       let key = (event.rawcode - 48);
       if (key === 0) return;
       let rate = key < 5 ? 1 + 0.1 * key : 0.1 * key; // 0.5x to 1.4x
+      rate = Math.round(rate * 10) / 10; // correct floating point rounding errors
       generateOszWithRate(currentFile, rate);
     } else {
       let ar = event.rawcode - 48;

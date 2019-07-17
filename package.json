@@ -4,16 +4,20 @@
   "description": "A tool to quickly generate practice difficulties for osu!.",
   "main": "main.js",
   "scripts": {
-    "start": "electron ."
+    "start": "electron .",
+    "build": "electron-packager . osu-ar-tool --overwrite",
+    "build:all": "electron-packager . osu-ar-tool --all"
   },
   "author": "Jerry Zhu",
   "license": "MIT",
   "dependencies": {
+    "@ffmpeg-installer/ffmpeg": "^1.0.19",
     "archiver": "^3.0.0",
     "iohook": "^0.5.1"
   },
   "devDependencies": {
-    "electron": "^5.0.7"
+    "electron": "^5.0.7",
+    "electron-packager": "^14.0.1"
   },
   "iohook": {
     "targets": [

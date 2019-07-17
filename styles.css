@@ -35,6 +35,7 @@ pre {
   min-height: 140px;
   overflow-x: auto;
   overflow-y: auto;
+  white-space: pre-line;
   background-color: #1d2125;
 }
 

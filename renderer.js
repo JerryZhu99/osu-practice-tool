@@ -8,7 +8,7 @@ consoleOutputElement.addEventListener('click', function () {
   consoleOutputElement.classList.toggle('hidden');
 })
 
-const log = (data) => {
+const log = (...data) => {
   consoleOutputElement.append(data, "\n");
   console.log(data);
 }
