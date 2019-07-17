@@ -2,14 +2,30 @@
   "name": "osu-ar-tool",
   "version": "0.0.1",
   "description": "A tool to quickly generate practice difficulties for osu!.",
-  "main": "app.js",
+  "main": "main.js",
   "scripts": {
-    "start": "node app.js"
+    "start": "electron ."
   },
-  "author": "",
+  "author": "Jerry Zhu",
   "license": "MIT",
   "dependencies": {
     "archiver": "^3.0.0",
     "iohook": "^0.5.1"
+  },
+  "devDependencies": {
+    "electron": "^5.0.7"
+  },
+  "iohook": {
+    "targets": [
+      "node-57",
+      "electron-70"
+    ],
+    "platforms": [
+      "win32"
+    ],
+    "arches": [
+      "x64",
+      "ia32"
+    ]
   }
 }

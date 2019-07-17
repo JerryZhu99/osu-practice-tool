@@ -1,0 +1,46 @@
+@font-face {
+  font-family: 'Open Sans';
+  src: url('fonts/Open_Sans/OpenSans-Light.ttf');
+}
+
+@font-face {
+  font-family: 'Inconsolata';
+  src: url('fonts/Inconsolata/Inconsolata-Regular.ttf');
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  font-family: 'Open Sans', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  background-color: #2d333b;
+  color: #ffffff;
+  margin: 0 20px;
+}
+
+h1 {
+  font-size: 30pt;
+  font-weight: 200;
+}
+
+h2 {
+  font-size: 16pt;
+}
+
+pre {
+  font-family: 'Inconsolata', 'Consolas', monospace;
+  width: 100%;
+  padding: 20px;
+  min-height: 140px;
+  overflow-x: auto;
+  overflow-y: auto;
+  background-color: #1d2125;
+}
+
+pre.hidden {
+  color: transparent;
+  min-height: 0;
+  height: 0;
+  overflow: hidden;
+}

@@ -5,14 +5,18 @@ const { spawn } = require('child_process');
 const archiver = require('archiver');
 const ioHook = require('iohook');
 
+const { log, setCurrentFile, setStatus } = require('./renderer');
+
 function generateOszWithAR(osupath, ar = 0) {
   let filename = path.parse(osupath).base;
   let dirs = path.dirname(osupath).split(path.sep);
   let dirname = dirs.pop();
   let songsDirectory = path.join(...dirs);
-  console.log(`Generating AR${ar} edit for ${filename}`);
+  log(`Generating AR${ar} edit for ${filename}`);
+  setStatus('Reading .osu file...');
   fs.readFile(osupath, (err, data) => {
     if (err) throw err;
+    setStatus('Processing .osu file...');
     let lines = data.toString("UTF-8").split("\n");
 
     if (!lines.some(e => e.startsWith("ApproachRate"))) {
@@ -26,7 +30,8 @@ function generateOszWithAR(osupath, ar = 0) {
     let approachRate = lines.find(e => e.startsWith("ApproachRate")).split(":")[1].trim();
 
     if (parseFloat(approachRate) === ar) {
-      console.log(`AR is already ${ar}!`);
+      log(`AR is already ${ar}!`);
+      setStatus(`AR is already ${ar}!`);
       return;
     }
 
@@ -51,7 +56,10 @@ function generateOszWithAR(osupath, ar = 0) {
       name: `${filename.substring(0, filename.lastIndexOf("]"))} AR${ar}].osu`
     });
     archive.finalize();
-    console.log("Done!");
+    archive.on('finish', () => {
+      log('Done!');
+      setStatus('Done!');
+    })
   });
 }
 
@@ -60,9 +68,12 @@ function generateOszWithRate(osupath, rate = 1.33) {
   let dirs = path.dirname(osupath).split(path.sep);
   let dirname = dirs.pop();
   let songsDirectory = path.join(...dirs);
-  console.log(`Generating ${rate}x edit for ${filename}`);
+  log(`Generating ${rate}x edit for ${filename}`);
+  setStatus('Reading .osu file...');
   fs.readFile(osupath, (err, data) => {
     if (err) throw err;
+    setStatus('Processing .osu file...');
+
     let lines = data.toString("UTF-8").split("\n");
 
     let difficulty = lines.find(e => e.startsWith("Version")).split(":")[1].trim();
@@ -115,6 +126,7 @@ function generateOszWithRate(osupath, rate = 1.33) {
       return l;
     })
 
+    setStatus('Generating modified .mp3 file...')
     const args = ['-y',
       '-i',
       `"${path.join(songsDirectory, dirname, audioFilename)}"`,
@@ -126,11 +138,12 @@ function generateOszWithRate(osupath, rate = 1.33) {
 
     ffmpeg.on('exit', (statusCode) => {
       if (statusCode === 0) {
-        console.log('conversion successful');
+        log('conversion successful');
       } else {
-        console.error("An error occured in ffmpeg");
+        error("An error occured in ffmpeg");
         return;
       }
+      setStatus('Generating .osz file...')
 
       let output = fs.createWriteStream(path.join(songsDirectory, `${dirname} ${rate}.osz`));
       let archive = archiver('zip', {
@@ -147,13 +160,16 @@ function generateOszWithRate(osupath, rate = 1.33) {
       archive.glob(path.join("*.png"), { cwd: path.join(songsDirectory, dirname) });
       archive.glob(path.join("*.jpg"), { cwd: path.join(songsDirectory, dirname) });
       archive.finalize();
-      console.log("Done!");
+      archive.on('finish', () => {
+        log('Done!');
+        setStatus('Done!');
+      })
     })
 
     ffmpeg
       .stderr
       .on('data', (err) => {
-        console.log('ffmpeg:', new String(err))
+        log('ffmpeg:', new String(err))
       })
   });
 }
@@ -185,6 +201,7 @@ let server = net.createServer(function (socket) {
       buffer = buffer.substring(endIndex);
       try {
         currentFile = JSON.parse(json).file;
+        setCurrentFile(currentFile);
       } catch (e) {
         console.error('json parse failed for: ', json);
       }
