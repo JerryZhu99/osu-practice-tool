@@ -175,6 +175,111 @@ function generateOszWithRate(osupath, rate = 1.33) {
   });
 }
 
+function generateOszWithNoSVs(osupath) {
+  let filename = path.parse(osupath).base;
+  let dirs = path.dirname(osupath).split(path.sep);
+  let dirname = dirs.pop();
+  let songsDirectory = path.join(...dirs);
+  log(`Generating No SVs edit for ${filename}`);
+  setStatus('Reading .osu file...');
+  fs.readFile(osupath, (err, data) => {
+    if (err) throw err;
+    setStatus('Processing .osu file...');
+    let lines = data.toString("UTF-8").split("\n");
+
+    let timingPointsIndex = lines.findIndex(e => e.startsWith("[TimingPoints]"))
+    let timingPointsEndIndex = lines.findIndex((e, i) => i > timingPointsIndex && e.startsWith("["))
+
+    lines = lines.map((l, index) => {
+      if (l.startsWith("Version")) {
+        return `${l.trim()} No SVs`;
+      }
+      if (l.startsWith("BeatmapID")) return "BeatmapID:0";
+
+      // is a timing point
+      if ((index > timingPointsIndex && index < timingPointsEndIndex)) {
+        let [time, msPerBeat, ...rest] = l.split(",");
+        msPerBeat = parseFloat(msPerBeat);
+        if (msPerBeat < 0) {
+          return "";
+        }
+      }
+      return l;
+    })
+
+    let output = fs.createWriteStream(path.join(songsDirectory, `${dirname}.osz`));
+    let archive = archiver('zip', {
+      zlib: { level: 0 } // Sets the compression level.
+    });
+    archive.on('error', function (err) {
+      throw err;
+    });
+    archive.pipe(output);
+    archive.append(lines.join("\n"), {
+      name: `${filename.substring(0, filename.lastIndexOf("]"))} No SVs].osu`
+    });
+    archive.finalize();
+    archive.on('finish', () => {
+      log('Done!');
+      setStatus('Done!');
+    })
+  });
+}
+
+function generateOszWithNoLNs(osupath) {
+  let filename = path.parse(osupath).base;
+  let dirs = path.dirname(osupath).split(path.sep);
+  let dirname = dirs.pop();
+  let songsDirectory = path.join(...dirs);
+  log(`Generating No LNs edit for ${filename}`);
+  setStatus('Reading .osu file...');
+  fs.readFile(osupath, (err, data) => {
+    if (err) throw err;
+    setStatus('Processing .osu file...');
+    let lines = data.toString("UTF-8").split("\n");
+
+    let hitObjectsIndex = lines.findIndex(e => e.startsWith("[HitObjects]"))
+
+    lines = lines.map((l, index) => {
+      if (l.startsWith("Version")) {
+        return `${l.trim()} No LNs`;
+      }
+      if (l.startsWith("BeatmapID")) return "BeatmapID:0";
+
+      if (l.trim() !== "") {
+        // is a hitobject
+        if (index > hitObjectsIndex) {
+          let [x, y, time, type, ...rest] = l.split(",");
+          if ((parseInt(type) & 128) > 0) { // mania hold note (128)
+            type = type & ~128 | 1;
+            rest = [rest[0], rest[1].split(":").slice(1).join(":")];
+          }
+          return [x, y, time, type, ...rest].join(",");
+        }
+      }
+      return l;
+    })
+
+    let output = fs.createWriteStream(path.join(songsDirectory, `${dirname}.osz`));
+    let archive = archiver('zip', {
+      zlib: { level: 0 } // Sets the compression level.
+    });
+    archive.on('error', function (err) {
+      throw err;
+    });
+    archive.pipe(output);
+    archive.append(lines.join("\n"), {
+      name: `${filename.substring(0, filename.lastIndexOf("]"))} No LNs].osu`
+    });
+    archive.finalize();
+    archive.on('finish', () => {
+      log('Done!');
+      setStatus('Done!');
+    })
+  });
+}
+
+
 
 let currentFile;
 let buffer = "";
@@ -236,6 +341,12 @@ ioHook.on("keypress", event => {
   } else if (event.altKey && event.rawcode === 84 && currentFile) {
     // Alt-T pressed, AR 10
     generateOszWithAR(currentFile, 10);
+  } else if (event.altKey && event.rawcode === 86 && currentFile) {
+    // Alt-V pressed, no SVs
+    generateOszWithNoSVs(currentFile);
+  } else if (event.altKey && event.rawcode === 76 && currentFile) {
+    // Alt-L pressed, no SVs
+    generateOszWithNoLNs(currentFile);
   }
 });
 ioHook.start();
