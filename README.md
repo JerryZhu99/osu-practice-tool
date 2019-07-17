@@ -4,21 +4,14 @@ A tool to quickly generate practice difficulties for osu!.
 
 ## Requirements
 
-Note: This tool has only been tested on the version numbers listed. It may or may not work on other versions.
+- StreamCompanion (tested on v 190618.17)
 
-- Node.js (v8.11.12)
-- npm (6.9.2)
-- ffmpeg (4.0) (optional, required for rate changes)
-- StreamCompanion (v 190618.17)
-- osu!
+This tool uses data from StreamCompanion to locate .osu files and place generated files.
 
 ## Setup
 
 1. Install any missing requirements.
-2. Run `npm install` to install:
-    - `archiver`, to generate the .osz (which is a .zip)
-    - `iohook`, for global keybindings (to use in game)
-3. Add the following pattern to "Output patterns" in StreamCompanion's settings and hit "Save":
+2. Add the following pattern to "Output patterns" in StreamCompanion's settings and hit "Save":
     - File/Command name: `file`
     - Save Event: `All`
     - Formatting: `!OsuFileLocation!`
@@ -30,7 +23,7 @@ To start the application:
 
 1. Start osu!.
 2. Start StreamCompanion.
-3. Run `npm start` to start the tool (`node app.js` works too).
+3. Start osu-ar-tool.
 4. Change the current map in osu!.
 
 ### Actions
@@ -54,3 +47,20 @@ To generate a map with a modified playback rate for the currently selected map:
     * This negates the effect of the DoubleTime mod.
 * Note: This may take some time, especially for longer maps.
 * Note: This will generate an `audio.mp3` file in the project directory. This can be deleted afterwards.
+
+
+## Development Requirements
+
+Note: This tool has only been tested on the version numbers listed. It may or may not work on other versions.
+
+- npm (6.9.2)
+
+## Development Setup
+
+1. Follow regular setup steps.
+2. Run `npm install` to install dependencies.
+
+## Development Usage
+
+- Run `npm start` to start the application.
+- Run `npm build` to build the package for your platform.
