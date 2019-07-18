@@ -318,7 +318,10 @@ let server = net.createServer(function (socket) {
     let startIndex = buffer.indexOf("{");
     let endIndex;
     let balance = 0;
+    let quoted = false;
     for (let i = startIndex; i < buffer.length; i++) {
+      if (buffer[i] === "\"") quoted = !quoted;
+      if (quoted) continue;
       if (buffer[i] === "{") balance++;
       if (buffer[i] === "}") balance--;
       if (buffer[i] === "\\") i++;
