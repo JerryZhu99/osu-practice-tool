@@ -190,6 +190,27 @@ function generateOszWithNoSVs(osupath) {
     let timingPointsIndex = lines.findIndex(e => e.startsWith("[TimingPoints]"))
     let timingPointsEndIndex = lines.findIndex((e, i) => i > timingPointsIndex && e.startsWith("["))
 
+    let mainBpm = lines.filter((l, index) => {
+      return ((index > timingPointsIndex && index < timingPointsEndIndex))
+    }).filter(l => {
+      let [time, msPerBeat, ...rest] = l.split(",");
+      msPerBeat = parseFloat(msPerBeat);
+      return (msPerBeat > 0);
+    }).reduce(([max, ms], l, i, arr) => {
+      if (i + 1 >= arr.length) return [max, ms];
+      let [time, msPerBeat] = l.split(",");
+      let [endTime] = arr[i + 1].split(",");
+      let duration = parseInt(endTime) - parseInt(time);
+      if (duration >= max) {
+        return [duration, 60000 / parseFloat(msPerBeat)];
+      } else {
+        return [max, ms];
+      }
+    }, [0, 0])[1];
+
+    log("Estimated BPM:", mainBpm);
+    let currentBpm = mainBpm;
+
     lines = lines.map((l, index) => {
       if (l.startsWith("Version")) {
         return `${l.trim()} No SVs`;
@@ -200,8 +221,13 @@ function generateOszWithNoSVs(osupath) {
       if ((index > timingPointsIndex && index < timingPointsEndIndex)) {
         let [time, msPerBeat, ...rest] = l.split(",");
         msPerBeat = parseFloat(msPerBeat);
+        const bpm = 60000 / msPerBeat;
         if (msPerBeat < 0) {
-          return "";
+          return [time, -100 * currentBpm / mainBpm, ...rest].join(",");
+        } else {
+          rest[4] = 0;
+          currentBpm = bpm;
+          return `${l.trim()}\n${[time, -100 * bpm / mainBpm, ...rest].join(",")}`;
         }
       }
       return l;
