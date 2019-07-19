@@ -26,6 +26,13 @@ class OsuFile {
     });
   }
 
+  /**
+   * Constucts a new OsuFile instance.
+   * @param {Buffer} data
+   * @param {string} filename
+   * @param {string} dirname
+   * @param {string} songsDirectory
+   */
   constructor(data, filename, dirname, songsDirectory) {
     this.lines = data.toString("UTF-8").split('\n');
     this.filename = filename;
@@ -50,6 +57,7 @@ class OsuFile {
    */
   setProperty(name, value) {
     let index = this.lines.findIndex(e => e.startsWith(name));
+    if (index == -1) return -1;
     this.lines[index] = `${this.lines[index].slice(0, this.lines[index].indexOf(":"))}: ${value}`;
   }
 

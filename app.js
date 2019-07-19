@@ -14,21 +14,18 @@ let currentFile;
 let buffer = "";
 let server = net.createServer(function (socket) {
   socket.on('data', function (rawData) {
-    let textChunk = buffer + rawData.toString('utf8');
-    buffer = textChunk;
-    if (!textChunk) return;
+    buffer = buffer + rawData.toString('utf8');
     if (!buffer.includes("{")) return;
     let startIndex = buffer.indexOf("{");
     let endIndex;
     let balance = 0;
     let quoted = false;
     for (let i = startIndex; i < buffer.length; i++) {
+      if (buffer[i] === "\\") i++;
       if (buffer[i] === "\"") quoted = !quoted;
       if (quoted) continue;
       if (buffer[i] === "{") balance++;
       if (buffer[i] === "}") balance--;
-      if (buffer[i] === "\\") i++;
-
       if (balance === 0) {
         endIndex = i + 1;
         break;
@@ -41,7 +38,7 @@ let server = net.createServer(function (socket) {
         currentFile = JSON.parse(json).file;
         setCurrentFile(currentFile);
       } catch (e) {
-        console.error('json parse failed for: ', json);
+        log('Error: json parse failed for: ', json);
       }
     }
   });
