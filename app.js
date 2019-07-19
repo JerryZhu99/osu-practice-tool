@@ -1,7 +1,7 @@
 const net = require('net');
 const ioHook = require('iohook');
 
-const { log, setCurrentFile, setStatus } = require('./renderer');
+const { setCurrentFile } = require('./renderer');
 
 const {
   generateOszWithAR,
