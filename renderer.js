@@ -9,7 +9,7 @@ consoleOutputElement.addEventListener('click', function () {
 })
 
 const log = (...data) => {
-  consoleOutputElement.append(data, "\n");
+  consoleOutputElement.append(...data, "\n");
   console.log(data);
 }
 

@@ -207,7 +207,7 @@ async function generateOszWithRate(osupath, rate = 1.33) {
   ffmpeg
     .stderr
     .on('data', (err) => {
-      log('ffmpeg:', new String(err))
+      log(new String(err))
     });
 }
 
