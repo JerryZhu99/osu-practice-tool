@@ -1,6 +1,6 @@
 {
   "name": "osu-ar-tool",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "description": "A tool to quickly generate practice difficulties for osu!.",
   "main": "main.js",
   "scripts": {

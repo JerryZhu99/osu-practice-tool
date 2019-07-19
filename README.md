@@ -48,6 +48,7 @@ To generate a map with a modified playback rate for the currently selected map:
 * Note: This may take some time, especially for longer maps.
 * Note: This will generate an `audio.mp3` file in the project directory. This can be deleted afterwards.
 
+See the wiki for more options.
 
 ## Development Requirements
 
