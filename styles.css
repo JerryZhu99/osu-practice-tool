@@ -16,10 +16,46 @@ body {
   font-family: 'Open Sans', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
   background-color: #2d333b;
   color: #ffffff;
-  margin: 0 20px;
+  margin: 0;
+}
+
+.navbar {
+  display: flex;
+  align-items: stretch;
+  justify-content: flex-start;
+  background-color: #3c444e;
+  width: 100%;
+  padding: 0 10px;
+}
+
+.tab {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 10px 50px;
+  margin: 10px 0 0;
+  text-decoration: none;
+  color: inherit;
+}
+
+.tab.active {
+  background-color: #2d333b;
+}
+
+.content {
+  margin: 20px;
+}
+
+section {
+  display: none;
+}
+
+section.active {
+  display: block;
 }
 
 h1 {
+  margin: 0.3em 0;
   font-size: 30pt;
   font-weight: 200;
 }
@@ -44,4 +80,13 @@ pre.hidden {
   min-height: 0;
   height: 0;
   overflow: hidden;
+}
+
+a.external {
+  color: #82baff;
+  text-decoration: none;
+}
+
+a.external:hover {
+  text-decoration: underline;
 }

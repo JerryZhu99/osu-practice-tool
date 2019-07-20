@@ -5,6 +5,7 @@ const ffmpegPath = require('@ffmpeg-installer/ffmpeg').path;
 const archiver = require('archiver');
 
 const { log, setCurrentFile, setStatus } = require('./renderer');
+const settings = require('./settings');
 
 class OsuFile {
 
@@ -257,7 +258,7 @@ async function generateOszWithRate(osupath, rate = 1.33) {
     '-i',
     `"${path.join(songsDirectory, dirname, audioFilename)}"`,
     '-filter:a',
-    `"atempo=${rate}"`,
+    settings.get('pitchShift') ? `"aresample=192k/${rate},asetrate=192k"` : `"atempo=${rate}"`,
     '-vn',
     `"audio.mp3"`];
   let ffmpeg = spawn(ffmpegPath, args, { windowsVerbatimArguments: true });
