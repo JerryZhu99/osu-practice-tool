@@ -3,6 +3,7 @@ const path = require('path');
 const { spawn } = require('child_process');
 const ffmpegPath = require('@ffmpeg-installer/ffmpeg').path;
 const archiver = require('archiver');
+const remote = require('electron').remote;
 
 const { log, setCurrentFile, setStatus } = require('./renderer');
 const settings = require('./settings');
@@ -39,6 +40,14 @@ class OsuFile {
     this.filename = filename;
     this.dirname = dirname;
     this.songsDirectory = songsDirectory;
+  }
+
+  getVersion() {
+    return parseInt(this.lines[0].match(/\d+/)[0]);
+  }
+
+  setVersion(version) {
+    this.lines[0] = `osu file format v${version}`;
   }
 
   /**
@@ -103,6 +112,9 @@ async function generateOszWithCS(osupath, cs = 0) {
     return;
   }
 
+  // Required to fix older file formats
+  if (!Number.isInteger(cs) && osuFile.getVersion() < 13) osuFile.setVersion(13);
+
   osuFile.setProperty("Version", `${difficulty} CS${cs}`);
   osuFile.setProperty("BeatmapID", 0);
   osuFile.setProperty("CircleSize", cs);
@@ -136,6 +148,9 @@ async function generateOszWithAR(osupath, ar = 0) {
     return;
   }
 
+  // Required to fix older file formats
+  if (!Number.isInteger(ar) && osuFile.getVersion() < 13) osuFile.setVersion(13);
+
   osuFile.setProperty("Version", `${difficulty} AR${ar}`);
   osuFile.setProperty("BeatmapID", 0);
   osuFile.setProperty("ApproachRate", ar);
@@ -163,6 +178,9 @@ async function generateOszWithOD(osupath, od = 0) {
     return;
   }
 
+  // Required to fix older file formats
+  if (!Number.isInteger(od) && osuFile.getVersion() < 13) osuFile.setVersion(13);
+
   osuFile.setProperty("Version", `${difficulty} OD${od}`);
   osuFile.setProperty("BeatmapID", 0);
   osuFile.setProperty("OverallDifficulty", od);
@@ -189,6 +207,9 @@ async function generateOszWithHP(osupath, hp = 0) {
     return;
   }
 
+  // Required to fix older file formats
+  if (!Number.isInteger(hp) && osuFile.getVersion() < 13) osuFile.setVersion(13);
+
   osuFile.setProperty("Version", `${difficulty} HP${hp}`);
   osuFile.setProperty("BeatmapID", 0);
   osuFile.setProperty("HPDrainRate", hp);
@@ -213,7 +234,6 @@ async function generateOszWithRate(osupath, rate = 1.33) {
   let audioFilename = osuFile.getProperty("AudioFilename");
 
   osuFile.setProperty("Version", `${difficulty} ${rate}x`);
-  osuFile.setProperty("AudioFilename", "audio.mp3");
   osuFile.setProperty("PreviewTime", Math.round(previewTime / rate));
   osuFile.setProperty("BeatmapID", 0);
 
@@ -254,13 +274,15 @@ async function generateOszWithRate(osupath, rate = 1.33) {
   setStatus('Generating modified .mp3 file...')
   const { songsDirectory, dirname } = osuFile;
 
+  const tempFilename = `${Date.now()}-${Math.random()}.mp3`;
+
   const args = ['-y',
     '-i',
     `"${path.join(songsDirectory, dirname, audioFilename)}"`,
     '-filter:a',
     settings.get('pitchShift') ? `"aresample=192k/${rate},asetrate=192k"` : `"atempo=${rate}"`,
     '-vn',
-    `"audio.mp3"`];
+    `"${path.join(remote.app.getPath('temp'), tempFilename)}"`];
   let ffmpeg = spawn(ffmpegPath, args, { windowsVerbatimArguments: true });
 
   ffmpeg.on('exit', async (statusCode) => {
@@ -286,10 +308,11 @@ async function generateOszWithRate(osupath, rate = 1.33) {
     archive.append(osuFile.toString(), {
       name: osuFile.filename
     });
-    archive.file("audio.mp3");
-    archive.glob(path.join("*.png"), { cwd: path.join(songsDirectory, dirname) });
-    archive.glob(path.join("*.jpg"), { cwd: path.join(songsDirectory, dirname) });
+    archive.file(path.join(remote.app.getPath('temp'), tempFilename), { name: audioFilename });
+    archive.glob("*.png", { cwd: path.join(songsDirectory, dirname) });
+    archive.glob("*.jpg", { cwd: path.join(songsDirectory, dirname) });
     await archive.finalize();
+    fs.unlinkSync(path.join(remote.app.getPath('temp'), tempFilename));
     log('Done!');
     setStatus('Done!');
   })
