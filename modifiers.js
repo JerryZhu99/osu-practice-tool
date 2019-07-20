@@ -226,6 +226,12 @@ async function generateOszWithNoSVs(osupath) {
 
   setStatus('Processing .osu file...');
 
+  if (osuFile.filename.includes('No SVs')) {
+    log('Map already has no SVs!');
+    setStatus('Map already has no SVs!');
+    return;
+  }
+
   osuFile.setProperty("Version", `${osuFile.getProperty("Version")} No SVs`);
   osuFile.setProperty("BeatmapID", 0);
 
@@ -284,6 +290,12 @@ async function generateOszWithNoLNs(osupath) {
 
   let osuFile = await OsuFile.fromFile(osupath);
   setStatus('Processing .osu file...');
+
+  if (osuFile.filename.includes('No LNs')) {
+    log('Map already has no LNs!');
+    setStatus('Map already has no LNs!');
+    return;
+  }
 
   osuFile.setProperty("Version", `${osuFile.getProperty("Version")} No LNs`);
   osuFile.setProperty("BeatmapID", 0);
