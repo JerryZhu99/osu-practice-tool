@@ -25,7 +25,18 @@
       </div>
     </section>
     <section id="options" class="page">
-      Change pitch with rate: <input type="checkbox" id="pitch-shift" />
+      <h2>Rate changing</h2>
+      <p>
+        Change pitch with rate: <input type="checkbox" id="pitch-shift" />
+      </p>
+      <h2>Custom difficulty generation</h2>
+      <div id="custom-difficulty">
+        <span>Custom CS:</span> <input type="number" min="0" max="10" step="any" id="custom-cs">
+        <span>Custom AR:</span> <input type="number" min="0" max="10" step="any" id="custom-ar">
+        <span>Custom OD:</span> <input type="number" min="0" max="10" step="any" id="custom-od">
+        <span>Custom HP:</span> <input type="number" min="0" max="10" step="any" id="custom-hp">
+        <span>Custom Rate:</span> <input type="number" min="0.5" max="2" step="any" id="custom-rate">
+      </div>
     </section>
     <section id="help" class="page">
       <p>

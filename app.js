@@ -1,6 +1,7 @@
 const net = require('net');
 const ioHook = require('iohook');
 
+const settings = require('./settings');
 const { setCurrentFile } = require('./renderer');
 
 const {
@@ -58,49 +59,56 @@ ioHook.on("keyup", event => {
   keysDown.delete(event.rawcode);
 })
 
-ioHook.on("keypress", event => {
-  // If 0-9 or T
-  const isNumber = (event.rawcode >= 48 && event.rawcode <= 57) || event.rawcode === 84;
+const key = (name) => name.charCodeAt(0);
 
-  if (event.altKey && event.shiftKey && event.rawcode === 72 && currentFile) {
-    // Alt-Shift-H pressed, 1.33 rate to negate HT 0.75
-    let rate = 1.33;
-    generateOszWithRate(currentFile, rate);
-  } else if (event.altKey && event.shiftKey && event.rawcode === 68 && currentFile) {
-    // Alt-Shift-D pressed, 0.66 rate to negate DT 1.5
-    let rate = 0.66;
-    generateOszWithRate(currentFile, rate);
-  } else if (event.altKey && isNumber && currentFile) {
-    let key = event.rawcode === 84 ? 10 : (event.rawcode - 48);
-    if (event.shiftKey) {
-      if (key === 0 || key === 10) return;
-      // Alt-Shift-1 to Alt-Shift-9 pressed
-      let rate = key < 5 ? 1 + 0.1 * key : 0.1 * key; // 0.5x to 1.4x
-      rate = Math.round(rate * 10) / 10; // correct floating point rounding errors
+ioHook.on("keypress", event => {
+  if (event.altKey && currentFile) {
+    const isNumber = (event.rawcode >= key('0') && event.rawcode <= key('9'))
+      || event.rawcode === key('T');
+    if (event.shiftKey && event.rawcode === key('H')) {
+      const rate = 1.33; // 1.33 rate to negate HT 0.75
       generateOszWithRate(currentFile, rate);
-    } else if (keysDown.has(67)) {
-      // Alt-C-(key) pressed
-      let cs = key;
-      generateOszWithCS(currentFile, cs);
-    } else if (keysDown.has(65)) {
-      // Alt-A-(key) pressed
-      let ar = key;
-      generateOszWithAR(currentFile, ar);
-    } else if (keysDown.has(79)) {
-      // Alt-O-(key) pressed
-      let od = key;
-      generateOszWithOD(currentFile, od);
-    } else if (keysDown.has(72)) {
-      // Alt-H-(key) pressed
-      let hp = key;
-      generateOszWithHP(currentFile, hp);
+    } else if (event.shiftKey && event.rawcode === key('D')) {
+      const rate = 0.66; // 0.66 rate to negate DT 1.5
+      generateOszWithRate(currentFile, rate);
+    } else if (isNumber) {
+      let value = event.rawcode === key('T') ? 10 : (event.rawcode - 48);
+      if (event.shiftKey) {
+        if (value === 0 || value === 10) return;
+        let rate = value < 5 ? 1 + 0.1 * value : 0.1 * value; // 0.5x to 1.4x
+        rate = Math.round(rate * 10) / 10; // correct floating point rounding errors
+        generateOszWithRate(currentFile, rate);
+      } else if (keysDown.has(key('C'))) {
+        generateOszWithCS(currentFile, value);
+      } else if (keysDown.has(key('A'))) {
+        generateOszWithAR(currentFile, value);
+      } else if (keysDown.has(key('O'))) {
+        generateOszWithOD(currentFile, value);
+      } else if (keysDown.has(key('H'))) {
+        generateOszWithHP(currentFile, value);
+      }
+    } else if (event.rawcode === key('U')) {
+      if (event.shiftKey) {
+        if (settings.get('customRate'))
+          generateOszWithRate(currentFile, settings.get('customRate'));
+      } else if (keysDown.has(key('C'))) {
+        if (settings.get('customCS'))
+          generateOszWithCS(currentFile, settings.get('customCS'));
+      } else if (keysDown.has(key('A'))) {
+        if (settings.get('customAR'))
+          generateOszWithAR(currentFile, settings.get('customAR'));
+      } else if (keysDown.has(key('O'))) {
+        if (settings.get('customOD'))
+          generateOszWithOD(currentFile, settings.get('customOD'));
+      } else if (keysDown.has(key('H'))) {
+        if (settings.get('customHP'))
+          generateOszWithHP(currentFile, settings.get('customHP'));
+      }
+    } else if (event.rawcode === key('V')) {
+      generateOszWithNoSVs(currentFile);
+    } else if (event.rawcode === key('L')) {
+      generateOszWithNoLNs(currentFile);
     }
-  } else if (event.altKey && event.rawcode === 86 && currentFile) {
-    // Alt-V pressed, no SVs
-    generateOszWithNoSVs(currentFile);
-  } else if (event.altKey && event.rawcode === 76 && currentFile) {
-    // Alt-L pressed, no LNs
-    generateOszWithNoLNs(currentFile);
   }
 });
 ioHook.start();

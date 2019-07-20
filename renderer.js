@@ -41,13 +41,48 @@ const setStatus = (status) => {
 
 // Options
 
-/** @type HTMLInputElement */
+/** @type {HTMLInputElement} */
 const pitchShift = document.getElementById('pitch-shift');
+/** @type {HTMLInputElement} */
+const customCS = document.getElementById('custom-cs');
+/** @type {HTMLInputElement} */
+const customAR = document.getElementById('custom-ar');
+/** @type {HTMLInputElement} */
+const customOD = document.getElementById('custom-od');
+/** @type {HTMLInputElement} */
+const customHP = document.getElementById('custom-hp');
+/** @type {HTMLInputElement} */
+const customRate = document.getElementById('custom-rate');
+
 pitchShift.checked = settings.get('pitchShift');
+customCS.value = settings.get('customCS');
+customAR.value = settings.get('customAR');
+customOD.value = settings.get('customOD');
+customHP.value = settings.get('customHP');
+customRate.value = settings.get('customRate');
 
 pitchShift.addEventListener('change', (event) => {
   settings.set('pitchShift', pitchShift.checked);
-})
+});
+
+const createDifficultyHandler = (setting) => (event) => {
+  /** @type {HTMLInputElement} */
+  let elem = event.target;
+  if (elem.validity.badInput) {
+    elem.value = '';
+    settings.set(setting, undefined);
+    return;
+  }
+  if (elem.validity.rangeUnderflow) elem.value = elem.min;
+  if (elem.validity.rangeOverflow) elem.value = elem.max;
+  settings.set(setting, elem.valueAsNumber);
+}
+
+customCS.addEventListener('blur', createDifficultyHandler('customCS'));
+customAR.addEventListener('blur', createDifficultyHandler('customAR'));
+customOD.addEventListener('blur', createDifficultyHandler('customOD'));
+customHP.addEventListener('blur', createDifficultyHandler('customHP'));
+customRate.addEventListener('blur', createDifficultyHandler('customRate'));
 
 // Help
 

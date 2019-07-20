@@ -82,6 +82,14 @@ pre.hidden {
   overflow: hidden;
 }
 
+#custom-difficulty {
+  display: grid;
+  grid-template-columns: 110px 60px;
+  grid-auto-rows: 30px;
+  justify-items: stretch;
+  align-items: center;
+}
+
 a.external {
   color: #82baff;
   text-decoration: none;
