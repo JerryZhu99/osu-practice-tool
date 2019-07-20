@@ -86,6 +86,33 @@ class OsuFile {
   }
 }
 
+
+async function generateOszWithCS(osupath, cs = 0) {
+  log(`Generating CS${cs} edit for ${osupath}`);
+  setStatus('Reading .osu file...');
+  let osuFile = await OsuFile.fromFile(osupath);
+
+  setStatus('Processing .osu file...');
+  let difficulty = osuFile.getProperty("Version")
+  let circleSize = osuFile.getProperty("CircleSize");
+
+  if (parseFloat(circleSize) === cs) {
+    log(`CS is already ${cs}!`);
+    setStatus(`CS is already ${cs}!`);
+    return;
+  }
+
+  osuFile.setProperty("Version", `${difficulty} CS${cs}`);
+  osuFile.setProperty("BeatmapID", 0);
+  osuFile.setProperty("CircleSize", cs);
+  osuFile.appendToDiffName(`CS${cs}`);
+
+  setStatus('Generating .osz file...');
+  await osuFile.generateOsz();
+
+  setStatus('Done!');
+}
+
 async function generateOszWithAR(osupath, ar = 0) {
   log(`Generating AR${ar} edit for ${osupath}`);
   setStatus('Reading .osu file...');
@@ -118,6 +145,60 @@ async function generateOszWithAR(osupath, ar = 0) {
 
   setStatus('Done!');
 }
+
+
+async function generateOszWithOD(osupath, od = 0) {
+  log(`Generating OD${od} edit for ${osupath}`);
+  setStatus('Reading .osu file...');
+  let osuFile = await OsuFile.fromFile(osupath);
+
+  setStatus('Processing .osu file...');
+  let difficulty = osuFile.getProperty("Version")
+  let overallDifficulty = osuFile.getProperty("OverallDifficulty");
+
+  if (parseFloat(overallDifficulty) === od) {
+    log(`OD is already ${od}!`);
+    setStatus(`OD is already ${od}!`);
+    return;
+  }
+
+  osuFile.setProperty("Version", `${difficulty} OD${od}`);
+  osuFile.setProperty("BeatmapID", 0);
+  osuFile.setProperty("OverallDifficulty", od);
+  osuFile.appendToDiffName(`OD${od}`);
+
+  setStatus('Generating .osz file...');
+  await osuFile.generateOsz();
+
+  setStatus('Done!');
+}
+
+async function generateOszWithHP(osupath, hp = 0) {
+  log(`Generating HP${hp} edit for ${osupath}`);
+  setStatus('Reading .osu file...');
+  let osuFile = await OsuFile.fromFile(osupath);
+
+  setStatus('Processing .osu file...');
+  let difficulty = osuFile.getProperty("Version")
+  let hpDrainRate = osuFile.getProperty("HPDrainRate");
+
+  if (parseFloat(hpDrainRate) === hp) {
+    log(`HP is already ${hp}!`);
+    setStatus(`HP is already ${hp}!`);
+    return;
+  }
+
+  osuFile.setProperty("Version", `${difficulty} HP${hp}`);
+  osuFile.setProperty("BeatmapID", 0);
+  osuFile.setProperty("HPDrainRate", hp);
+  osuFile.appendToDiffName(`HP${hp}`);
+
+  setStatus('Generating .osz file...');
+  await osuFile.generateOsz();
+
+  setStatus('Done!');
+}
+
 
 async function generateOszWithRate(osupath, rate = 1.33) {
   log(`Generating ${rate}x edit for ${osupath}`);
@@ -326,7 +407,10 @@ async function generateOszWithNoLNs(osupath) {
 }
 
 module.exports = {
+  generateOszWithCS,
   generateOszWithAR,
+  generateOszWithOD,
+  generateOszWithHP,
   generateOszWithRate,
   generateOszWithNoSVs,
   generateOszWithNoLNs,
