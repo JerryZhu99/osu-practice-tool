@@ -1,12 +1,12 @@
 {
-  "name": "osu-ar-tool",
+  "name": "osu-practice-tool",
   "version": "0.0.2",
   "description": "A tool to quickly generate practice difficulties for osu!.",
   "main": "main.js",
   "scripts": {
     "start": "electron .",
-    "build": "electron-packager . osu-ar-tool --overwrite",
-    "build:all": "electron-packager . osu-ar-tool --all"
+    "build": "electron-packager . osu-practice-tool --overwrite",
+    "build:all": "electron-packager . osu-practice-tool --all"
   },
   "author": "Jerry Zhu",
   "license": "MIT",

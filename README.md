@@ -1,4 +1,4 @@
-# osu-ar-tool
+# osu-practice-tool
 
 A tool to quickly generate practice difficulties for osu!.
 
@@ -23,7 +23,7 @@ To start the application:
 
 1. Start osu!.
 2. Start StreamCompanion.
-3. Start osu-ar-tool.
+3. Start osu-practice-tool.
 4. Change the current map in osu!.
 
 ### Actions
