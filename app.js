@@ -46,6 +46,15 @@ let server = net.createServer(function (socket) {
 
 server.listen(7839, 'localhost');
 
+let keysDown = new Set();
+ioHook.on("keydown", event => {
+  keysDown.add(event.rawcode)
+})
+
+ioHook.on("keyup", event => {
+  keysDown.delete(event.rawcode);
+})
+
 ioHook.on("keypress", event => {
   if (event.altKey && event.shiftKey && event.rawcode === 72 && currentFile) {
     // Alt-Shift-H pressed, 1.33 rate to negate HT 0.75
@@ -58,17 +67,20 @@ ioHook.on("keypress", event => {
   } else if (event.altKey && event.rawcode >= 48 && event.rawcode <= 57 && currentFile) {
     // Alt-0 to Alt-9 pressed
     if (event.shiftKey) {
+      // Alt-Shift-0 to Alt-Shift-9 pressed
       let key = (event.rawcode - 48);
       if (key === 0) return;
       let rate = key < 5 ? 1 + 0.1 * key : 0.1 * key; // 0.5x to 1.4x
       rate = Math.round(rate * 10) / 10; // correct floating point rounding errors
       generateOszWithRate(currentFile, rate);
-    } else {
+
+    } else if (keysDown.has(65)) {
+      // Alt-A-0 to Alt-A-9 pressed
       let ar = event.rawcode - 48;
       generateOszWithAR(currentFile, ar);
     }
-  } else if (event.altKey && event.rawcode === 84 && currentFile) {
-    // Alt-T pressed, AR 10
+  } else if (event.altKey && keysDown.has(65) && event.rawcode === 84 && currentFile) {
+    // Alt-A-T pressed, AR 10
     generateOszWithAR(currentFile, 10);
   } else if (event.altKey && event.rawcode === 86 && currentFile) {
     // Alt-V pressed, no SVs
