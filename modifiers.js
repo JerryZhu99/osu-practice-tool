@@ -331,7 +331,7 @@ async function generateOszWithNoSVs(osupath) {
 
   setStatus('Processing .osu file...');
 
-  if (osuFile.filename.includes('No SVs')) {
+  if (osuFile.getProperty("Version").includes('No SVs')) {
     log('Map already has no SVs!');
     setStatus('Map already has no SVs!');
     return;
@@ -405,7 +405,7 @@ async function generateOszWithNoLNs(osupath) {
   let osuFile = await OsuFile.fromFile(osupath);
   setStatus('Processing .osu file...');
 
-  if (osuFile.filename.includes('No LNs')) {
+  if (osuFile.getProperty("Version").includes('No LNs')) {
     log('Map already has no LNs!');
     setStatus('Map already has no LNs!');
     return;
