@@ -19,6 +19,7 @@ tabs.forEach(tab => {
 // Status
 
 const statusElement = document.getElementById('generation-status');
+const statusCountElement = document.getElementById('status-count');
 const currentFileElement = document.getElementById('current-file');
 const consoleOutputElement = document.getElementById('console-output');
 
@@ -28,15 +29,24 @@ consoleOutputElement.addEventListener('click', function () {
 
 const log = (...data) => {
   consoleOutputElement.append(...data, '\n');
-  console.log(data);
+  console.log(...data);
 }
 
 const setCurrentFile = (filename) => {
-  currentFileElement.innerText = filename;
+  currentFileElement.innerText = filename || "No file selected.";
 }
 
-const setStatus = (status) => {
-  statusElement.innerText = status;
+let count = 0;
+
+const setStatus = (status, start = 0) => {
+  count += start;
+  statusCountElement.innerText = count > 0 ? `(${count})` : '';
+  if (count === 0 || (count === 1 && start !== -1)) {
+    // if only one active task and another task did not just end
+    statusElement.innerText = status;
+  } else {
+    statusElement.innerText = `${status} (${count})`;
+  }
 }
 
 // Options
