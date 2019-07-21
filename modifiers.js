@@ -343,23 +343,32 @@ async function generateOszWithNoSVs(osupath) {
   let timingPointsIndex = osuFile.lines.findIndex(e => e.startsWith("[TimingPoints]"))
   let timingPointsEndIndex = osuFile.lines.findIndex((e, i) => i > timingPointsIndex && e.startsWith("["))
 
-  let mainBpm = osuFile.lines.filter((l, index) => {
+  let bpms = new Map();
+  osuFile.lines.filter((l, index) => {
     return ((index > timingPointsIndex && index < timingPointsEndIndex))
   }).filter(l => {
     let [time, msPerBeat, ...rest] = l.split(",");
     msPerBeat = parseFloat(msPerBeat);
     return (msPerBeat > 0);
-  }).reduce(([max, ms], l, i, arr) => {
-    if (i + 1 >= arr.length) return [max, ms];
+  }).forEach((l, i, arr) => {
     let [time, msPerBeat] = l.split(",");
+    if (i + 1 >= arr.length) {
+      let [x, y, endTime] = osuFile.lines[osuFile.lines.length - 2].split(",");
+      let duration = parseInt(endTime) - parseInt(time);
+      if (!bpms.has(msPerBeat)) bpms.set(msPerBeat, 0);
+      bpms.set(msPerBeat, bpms.get(msPerBeat) + duration);
+      return;
+    }
     let [endTime] = arr[i + 1].split(",");
     let duration = parseInt(endTime) - parseInt(time);
-    if (duration >= max) {
-      return [duration, 60000 / parseFloat(msPerBeat)];
-    } else {
-      return [max, ms];
-    }
-  }, [0, 0])[1];
+    if (!bpms.has(msPerBeat)) bpms.set(msPerBeat, 0);
+    bpms.set(msPerBeat, bpms.get(msPerBeat) + duration);
+  });
+
+  let mainBpm = 60000 / [...bpms.entries()]
+    .reduce(([mainMsPerBeat, maxCount], [msPerBeat, count]) => {
+      return count > maxCount ? [msPerBeat, count] : [mainMsPerBeat, maxCount]
+    }, [0, 0])[0];
 
   log("Estimated BPM:", mainBpm);
   let currentBpm = mainBpm;
