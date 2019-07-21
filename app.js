@@ -1,5 +1,6 @@
 const net = require('net');
 const ioHook = require('iohook');
+const activeWin = require('active-win');
 
 const settings = require('./settings');
 const { setCurrentFile } = require('./renderer');
@@ -61,7 +62,9 @@ ioHook.on("keyup", event => {
 
 const key = (name) => name.charCodeAt(0);
 
-ioHook.on("keypress", event => {
+ioHook.on("keypress", async event => {
+  const window = await activeWin();
+  if (!window || window.title.trim() !== 'osu!') return;
   if (event.altKey && currentFile) {
     const isNumber = (event.rawcode >= key('0') && event.rawcode <= key('9'))
       || event.rawcode === key('T');
