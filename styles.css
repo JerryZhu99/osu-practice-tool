@@ -82,12 +82,69 @@ pre.hidden {
   overflow: hidden;
 }
 
+input[type="checkbox"] {
+  position: absolute;
+  -webkit-appearance: none;
+  cursor: pointer;
+}
+
+label .checkbox {
+  vertical-align: bottom;
+  background-color: #2d333b;
+	border: 1px solid #ffffff;
+	padding: 8px;
+	border-radius: 3px;
+  display: inline-block;
+  position: relative;
+  cursor: pointer;
+}
+
+label .checkbox::after {
+  content: "";
+  position: absolute;
+  transform: rotate(30deg) scale(0);
+  left: 5px;
+  top: 4px;
+  width: 4px;
+  height: 8px;
+  border: solid #ffffff;
+  border-width: 0 2px 2px 0;
+  transition: all 0.2s ease-in-out;
+}
+
+label input:checked ~ .checkbox::after {
+  transform: rotate(45deg) scale(1);
+  left: 5px;
+  top: 2px;
+  width: 4px;
+  height: 8px;
+  border: solid #ffffff;
+  border-width: 0 2px 2px 0;
+}
+
 #custom-difficulty {
   display: grid;
   grid-template-columns: 110px 60px;
   grid-auto-rows: 30px;
   justify-items: stretch;
   align-items: center;
+}
+
+input[type="number"] {
+  font-family: inherit;
+  font-size: 100%;
+  box-sizing: border-box;
+  background-color: #3c444e;
+  color: #ffffff;
+  border: none;
+  border-radius: 3px;
+  padding: 0 0 0 0.2em;
+}
+
+input[type=number]::-webkit-inner-spin-button,
+input[type=number]::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
 }
 
 a.external {
