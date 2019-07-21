@@ -69,7 +69,7 @@ ioHook.on("keypress", event => {
       const rate = 1.33; // 1.33 rate to negate HT 0.75
       generateOszWithRate(currentFile, rate);
     } else if (event.shiftKey && event.rawcode === key('D')) {
-      const rate = 0.66; // 0.66 rate to negate DT 1.5
+      const rate = 0.67; // 0.67 rate to negate DT 1.5
       generateOszWithRate(currentFile, rate);
     } else if (isNumber) {
       let value = event.rawcode === key('T') ? 10 : (event.rawcode - 48);
