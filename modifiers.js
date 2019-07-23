@@ -328,7 +328,6 @@ async function generateOszWithRate(osupath, rate = 1.33) {
       }
       try {
         osuFile.appendToDiffName(`${rate}x`);
-        osuFile.dirname = `${osuFile.dirname} ${rate}`;
 
         setStatus('Generating .osz file...')
 
@@ -338,6 +337,7 @@ async function generateOszWithRate(osupath, rate = 1.33) {
           archive.glob("*.jpg", { cwd: path.join(songsDirectory, dirname) });
         }
 
+        osuFile.dirname = `${osuFile.dirname} ${rate}`;
         await osuFile.generateOsz(archiveCallback);
 
         fs.unlinkSync(path.join(remote.app.getPath('temp'), tempFilename));
@@ -356,6 +356,38 @@ async function generateOszWithRate(osupath, rate = 1.33) {
         log(new String(err))
       });
 
+  } catch (e) {
+    setStatus('An error occurred.', -1);
+    log(e);
+    throw e;
+  }
+}
+
+async function generateOszWithCopy(osupath) {
+  try {
+    log(`Generating copy for ${osupath}`);
+    setStatus('Reading .osu file...', 1);
+    let osuFile = await OsuFile.fromFile(osupath);
+    setStatus('Processing .osu file...');
+
+    let difficulty = osuFile.getProperty("Version");
+    osuFile.setProperty("Version", `${difficulty} (copy)`);
+    osuFile.setProperty("BeatmapID", 0);
+
+    osuFile.appendToDiffName(`(copy)`);
+
+    setStatus('Generating .osz file...')
+
+    const { songsDirectory, dirname } = osuFile;
+
+    const archiveCallback = (archive) => {
+      archive.glob("*.mp3", { cwd: path.join(songsDirectory, dirname) });
+      archive.glob("*.png", { cwd: path.join(songsDirectory, dirname) });
+      archive.glob("*.jpg", { cwd: path.join(songsDirectory, dirname) });
+    }
+
+    osuFile.dirname = `${osuFile.dirname} copy`;
+    await osuFile.generateOsz(archiveCallback);
   } catch (e) {
     setStatus('An error occurred.', -1);
     log(e);
@@ -490,6 +522,7 @@ module.exports = {
   generateOszWithOD,
   generateOszWithHP,
   generateOszWithRate,
+  generateOszWithCopy,
   generateOszWithNoSVs,
   generateOszWithNoLNs,
 }

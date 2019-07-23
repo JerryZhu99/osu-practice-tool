@@ -11,6 +11,7 @@ const {
   generateOszWithOD,
   generateOszWithHP,
   generateOszWithRate,
+  generateOszWithCopy,
   generateOszWithNoSVs,
   generateOszWithNoLNs,
 } = require('./modifiers');
@@ -68,7 +69,9 @@ ioHook.on("keypress", async event => {
   if (event.altKey && currentFile) {
     const isNumber = (event.rawcode >= key('0') && event.rawcode <= key('9'))
       || event.rawcode === key('T');
-    if (event.shiftKey && event.rawcode === key('H')) {
+    if (event.shiftKey && event.rawcode === key('C')) {
+      generateOszWithCopy(currentFile);
+    } else if (event.shiftKey && event.rawcode === key('H')) {
       const rate = 1.33; // 1.33 rate to negate HT 0.75
       generateOszWithRate(currentFile, rate);
     } else if (event.shiftKey && event.rawcode === key('D')) {
