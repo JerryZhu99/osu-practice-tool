@@ -79,7 +79,17 @@ class OsuFile {
     this.filename = `${this.filename.substring(0, this.filename.lastIndexOf("]"))} ${postfix}].osu`
   }
 
-  generateOsz() {
+  generateOsu() {
+    return new Promise((resolve, reject) => {
+      const filename = path.join(this.songsDirectory, this.dirname, this.filename);
+      fs.writeFile(filename, this.toString(), (err) => {
+        if (err) return reject(err);
+        resolve();
+      })
+    })
+  }
+
+  generateOsz(archiveCallback) {
     let oszFileName = path.join(this.songsDirectory, `${this.dirname}.osz`);
     let output = fs.createWriteStream(oszFileName);
     let archive = archiver('zip', {
@@ -89,6 +99,7 @@ class OsuFile {
       throw err;
     });
     archive.pipe(output);
+    if (archiveCallback) archiveCallback(archive);
     archive.append(this.toString(), {
       name: this.filename
     });
@@ -121,8 +132,8 @@ async function generateOszWithCS(osupath, cs = 0) {
     osuFile.setProperty("CircleSize", cs);
     osuFile.appendToDiffName(`CS${cs}`);
 
-    setStatus('Generating .osz file...');
-    await osuFile.generateOsz();
+    setStatus('Generating .osu file...');
+    await osuFile.generateOsu();
   } catch (e) {
     setStatus('An error occurred.', -1);
     log(e);
@@ -162,8 +173,8 @@ async function generateOszWithAR(osupath, ar = 0) {
     osuFile.setProperty("ApproachRate", ar);
     osuFile.appendToDiffName(`AR${ar}`);
 
-    setStatus('Generating .osz file...');
-    await osuFile.generateOsz();
+    setStatus('Generating .osu file...');
+    await osuFile.generateOsu();
 
   } catch (e) {
     setStatus('An error occurred.', -1);
@@ -198,8 +209,8 @@ async function generateOszWithOD(osupath, od = 0) {
     osuFile.setProperty("OverallDifficulty", od);
     osuFile.appendToDiffName(`OD${od}`);
 
-    setStatus('Generating .osz file...');
-    await osuFile.generateOsz();
+    setStatus('Generating .osu file...');
+    await osuFile.generateOsu();
   } catch (e) {
     setStatus('An error occurred.', -1);
     log(e);
@@ -232,8 +243,8 @@ async function generateOszWithHP(osupath, hp = 0) {
     osuFile.setProperty("HPDrainRate", hp);
     osuFile.appendToDiffName(`HP${hp}`);
 
-    setStatus('Generating .osz file...');
-    await osuFile.generateOsz();
+    setStatus('Generating .osu file...');
+    await osuFile.generateOsu();
   } catch (e) {
     setStatus('An error occurred.', -1);
     log(e);
@@ -317,24 +328,18 @@ async function generateOszWithRate(osupath, rate = 1.33) {
       }
       try {
         osuFile.appendToDiffName(`${rate}x`);
+        osuFile.dirname = `${osuFile.dirname} ${rate}`;
 
         setStatus('Generating .osz file...')
 
-        let output = fs.createWriteStream(path.join(songsDirectory, `${dirname} ${rate}.osz`));
-        let archive = archiver('zip', {
-          zlib: { level: 0 } // Sets the compression level.
-        });
-        archive.on('error', function (err) {
-          throw err;
-        });
-        archive.pipe(output);
-        archive.append(osuFile.toString(), {
-          name: osuFile.filename
-        });
-        archive.file(path.join(remote.app.getPath('temp'), tempFilename), { name: audioFilename });
-        archive.glob("*.png", { cwd: path.join(songsDirectory, dirname) });
-        archive.glob("*.jpg", { cwd: path.join(songsDirectory, dirname) });
-        await archive.finalize();
+        const archiveCallback = (archive) => {
+          archive.file(path.join(remote.app.getPath('temp'), tempFilename), { name: audioFilename });
+          archive.glob("*.png", { cwd: path.join(songsDirectory, dirname) });
+          archive.glob("*.jpg", { cwd: path.join(songsDirectory, dirname) });
+        }
+
+        await osuFile.generateOsz(archiveCallback);
+
         fs.unlinkSync(path.join(remote.app.getPath('temp'), tempFilename));
       } catch (e) {
         setStatus('An error occurred.', -1);
@@ -427,8 +432,8 @@ async function generateOszWithNoSVs(osupath) {
 
     osuFile.appendToDiffName('No SVs');
 
-    setStatus('Generating .osz file...')
-    await osuFile.generateOsz();
+    setStatus('Generating .osu file...')
+    await osuFile.generateOsu();
   } catch (e) {
     setStatus('An error occurred.', -1);
     log(e);
@@ -473,8 +478,8 @@ async function generateOszWithNoLNs(osupath) {
 
   osuFile.appendToDiffName('No LNs');
 
-  setStatus('Generating .osz file...');
-  osuFile.generateOsz();
+  setStatus('Generating .osu file...');
+  osuFile.generateOsu();
   log('Done!');
   setStatus('Done!');
 }
