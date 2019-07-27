@@ -468,6 +468,74 @@ async function generateOszWithSplit(osupath) {
   }
 }
 
+async function generateOszWithCombo(osupath, combo = 100) {
+  log(`Generating +${combo} combo edit for ${osupath}`);
+  setStatus('Reading .osu file...');
+
+  let osuFile = await OsuFile.fromFile(osupath);
+  setStatus('Processing .osu file...');
+
+  let addCombo = combo;
+
+  let oldComboMatch = osuFile.getProperty("Version").match(/\s[+][0-9]+x/);
+  let oldCombo;
+  if (oldComboMatch) {
+    oldCombo = parseInt(oldComboMatch[0]);
+    combo = oldCombo + addCombo;
+    osuFile.setProperty("Version", osuFile.getProperty("Version").replace(/\s[+][0-9]+x/, ''));
+    osuFile.filename = osuFile.filename.replace(/\s[+][0-9]+x/, '')
+  }
+
+  osuFile.setProperty("Version", `${osuFile.getProperty("Version")} +${combo}x`);
+  osuFile.setProperty("BeatmapID", 0);
+
+  let hitObjectsIndex = osuFile.lines.findIndex(e => e.startsWith("[HitObjects]"))
+  let timingPointsIndex = osuFile.lines.findIndex(e => e.startsWith("[TimingPoints]"))
+  let timingPointsEndIndex = osuFile.lines.findIndex((e, i) => i > timingPointsIndex && e.startsWith("["))
+
+  let firstObject = osuFile.lines.find((e, i) => (i > hitObjectsIndex && e.trim() !== ""));
+  let [x, y, time] = firstObject.split(",");
+  time = parseInt(time);
+
+  let spinnerTime = oldCombo ? time : time - 1000;
+
+  let spinners = []
+  for (let i = 0; i < addCombo; i++) {
+    spinners.push(`256,192,${spinnerTime},12,0,${spinnerTime},0:0:0:0:`);
+  }
+  osuFile.lines.splice(hitObjectsIndex + 1, 0, ...spinners);
+
+  if (!oldCombo) {
+    let [lastTimingPoint, lastTimingPointIndex] = osuFile.lines
+      .map((e, i) => [e, i])
+      .filter(([e], i) => i > timingPointsIndex && i < timingPointsEndIndex)
+      .reverse()
+      .find(([e]) => parseInt(e.split(",")[0]) <= time);
+
+    let [offset, msPerBeat, set, meter, index, volume, inherited, kiai] = lastTimingPoint.split(",");
+    console.log([offset, msPerBeat, set, index, volume, inherited, kiai])
+    msPerBeat = parseFloat(msPerBeat)
+    if (msPerBeat > 0 && timingPointsIndex + 1 !== lastTimingPointIndex) {
+      msPerBeat = -100;
+      inherited = 1;
+    }
+    let silentPoint = [spinnerTime, msPerBeat, set, meter, index, 0, inherited, kiai];
+    console.log(silentPoint);
+    let addedPoints = [silentPoint.join(",")];
+    if (offset < time) {
+      addedPoints.push([time, msPerBeat, set, meter, index, volume, inherited, kiai].join(","));
+    }
+
+    osuFile.lines.splice(lastTimingPointIndex, 0, ...addedPoints)
+  }
+  osuFile.appendToDiffName(`+${combo}x`);
+
+  setStatus('Generating .osu file...');
+  osuFile.generateOsu();
+  log('Done!');
+  setStatus('Done!');
+}
+
 async function generateOszWithNoSVs(osupath) {
   try {
     log(`Generating No SVs edit for ${osupath}`);
@@ -597,6 +665,7 @@ module.exports = {
   generateOszWithRate,
   generateOszWithCopy,
   generateOszWithSplit,
+  generateOszWithCombo,
   generateOszWithNoSVs,
   generateOszWithNoLNs,
 }
