@@ -36,7 +36,7 @@ class OsuFile {
    * @param {string} songsDirectory
    */
   constructor(data, filename, dirname, songsDirectory) {
-    this.lines = data.toString("UTF-8").split('\n');
+    if (data) this.lines = data.toString("UTF-8").split('\n');
     this.filename = filename;
     this.dirname = dirname;
     this.songsDirectory = songsDirectory;
@@ -104,6 +104,12 @@ class OsuFile {
       name: this.filename
     });
     return archive.finalize();
+  }
+
+  clone() {
+    const copy = new OsuFile(null, this.filename, this.dirname, this.songsDirectory);
+    copy.lines = this.lines.slice();
+    return copy;
   }
 }
 
@@ -371,10 +377,10 @@ async function generateOszWithCopy(osupath) {
     setStatus('Processing .osu file...');
 
     let difficulty = osuFile.getProperty("Version");
-    osuFile.setProperty("Version", `${difficulty} (copy)`);
+    osuFile.setProperty("Version", `${difficulty} (Copy)`);
     osuFile.setProperty("BeatmapID", 0);
 
-    osuFile.appendToDiffName(`(copy)`);
+    osuFile.appendToDiffName(`(Copy)`);
 
     setStatus('Generating .osz file...')
 
@@ -386,8 +392,75 @@ async function generateOszWithCopy(osupath) {
       archive.glob("*.jpg", { cwd: path.join(songsDirectory, dirname) });
     }
 
-    osuFile.dirname = `${osuFile.dirname} copy`;
+    osuFile.dirname = `${osuFile.dirname} Copy`;
     await osuFile.generateOsz(archiveCallback);
+    log('Done!');
+    setStatus('Done!', -1);
+  } catch (e) {
+    setStatus('An error occurred.', -1);
+    log(e);
+    throw e;
+  }
+}
+
+
+async function generateOszWithSplit(osupath) {
+  try {
+    log(`Generating split for ${osupath}`);
+    setStatus('Reading .osu file...', 1);
+    let osuFile = await OsuFile.fromFile(osupath);
+    setStatus('Processing .osu file...');
+
+    let difficulty = osuFile.getProperty("Version");
+
+    if (!difficulty.includes('(Copy)')) {
+      setStatus('The map is not a copy.', -1);
+      log('The map is not a copy.');
+      return;
+    }
+
+    difficulty = `${difficulty.split('(Copy)')[0]}`;
+
+    osuFile.setProperty("BeatmapID", 0);
+
+    const bookmarks = (osuFile.getProperty('Bookmarks') || '')
+      .split(",")
+      .filter(e => (e.trim().length > 0))
+      .map(e => parseInt(e));
+
+    if (bookmarks.length == 0) {
+      setStatus('No bookmarks set!.', -1);
+      log('No bookmarks set!');
+      return;
+    }
+    const sections = [0, ...bookmarks.sort((a, b) => (a - b)), Infinity];
+
+    const hitObjectsIndex = osuFile.lines.findIndex(e => e.startsWith("[HitObjects]"))
+
+    const promises = [];
+
+    for (let i = 1; i < sections.length; i++) {
+      const start = sections[i - 1];
+      const end = sections[i];
+      const sectionFile = osuFile.clone();
+
+      sectionFile.setProperty("Version", `${difficulty} (Split ${i})`);
+      sectionFile.appendToDiffName(i);
+
+      sectionFile.lines = sectionFile.lines.filter((line, index) => {
+        if (index > hitObjectsIndex) {
+          let [x, y, time, ...rest] = line.split(",");
+          time = parseInt(time);
+          return (start <= time && time <= end);
+        } else {
+          return true;
+        }
+      })
+
+      await sectionFile.generateOsu();
+    }
+    log('Done!');
+    setStatus('Done!', -1);
   } catch (e) {
     setStatus('An error occurred.', -1);
     log(e);
@@ -523,6 +596,7 @@ module.exports = {
   generateOszWithHP,
   generateOszWithRate,
   generateOszWithCopy,
+  generateOszWithSplit,
   generateOszWithNoSVs,
   generateOszWithNoLNs,
 }

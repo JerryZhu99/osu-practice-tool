@@ -12,6 +12,7 @@ const {
   generateOszWithHP,
   generateOszWithRate,
   generateOszWithCopy,
+  generateOszWithSplit,
   generateOszWithNoSVs,
   generateOszWithNoLNs,
 } = require('./modifiers');
@@ -110,6 +111,8 @@ ioHook.on("keypress", async event => {
         if (settings.get('customHP'))
           generateOszWithHP(currentFile, settings.get('customHP'));
       }
+    } else if (event.rawcode === key('P')) {
+      generateOszWithSplit(currentFile);
     } else if (event.rawcode === key('V')) {
       generateOszWithNoSVs(currentFile);
     } else if (event.rawcode === key('L')) {
