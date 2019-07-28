@@ -363,7 +363,7 @@ async function splitByBookmarks(osuFile) {
     const start = sections[i - 1];
     const end = sections[i];
     const sectionFile = osuFile.clone();
-    sectionFile.setProperty("Version", `${difficulty} (Split ${i})`);
+    sectionFile.setProperty("Version", `${difficulty} (${i}/${sections.length - 1})`);
     sectionFile.setProperty("BeatmapID", 0);
     sectionFile.appendToDiffName(i);
     sectionFile.lines = sectionFile.lines.filter((line, index) => {
