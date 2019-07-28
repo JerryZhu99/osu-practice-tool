@@ -2,8 +2,8 @@ const net = require('net');
 const ioHook = require('iohook');
 const activeWin = require('active-win');
 
-const settings = require('./settings');
-const { setCurrentFile } = require('./renderer');
+const settings = require('./src/settings');
+const { setCurrentFile } = require('./src/renderer');
 
 const {
   generateOszWithAR,
@@ -17,7 +17,7 @@ const {
   generateOszWithComboSplit,
   generateOszWithNoSVs,
   generateOszWithNoLNs,
-} = require('./modifiers');
+} = require('./src/modifiers');
 
 let currentFile;
 let buffer = "";

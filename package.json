@@ -5,8 +5,7 @@
   "main": "main.js",
   "scripts": {
     "start": "electron .",
-    "build": "electron-packager . osu-practice-tool --overwrite",
-    "build:all": "electron-packager . osu-practice-tool --all"
+    "build": "electron-packager . osu-practice-tool --icon app.ico --overwrite"
   },
   "author": "Jerry Zhu",
   "license": "MIT",
