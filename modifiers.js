@@ -85,7 +85,7 @@ async function generateOszWithRate(osupath, rate) {
     setStatus("Processing .osu file...");
     await setRate(osuFile, rate);
 
-    setStatus("Gnerating modified .mp3 file")
+    setStatus("Generating modified .mp3 file")
     let audioFilename = osuFile.getProperty("AudioFilename");
     let { songsDirectory, dirname } = osuFile;
     let audioFilePath = path.join(songsDirectory, dirname, audioFilename);

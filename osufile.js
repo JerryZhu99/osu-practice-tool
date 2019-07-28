@@ -2,7 +2,8 @@ const fs = require("fs");
 const path = require("path");
 const archiver = require("archiver");
 const { log } = require("./renderer");
-
+const { TimingPoint } = require("./timingpoint");
+const { HitObject, HitCircle, Spinner, HoldNote } = require("./hitobject");
 class OsuFile {
   /**
    * Reads an .osu file asynchronously.
@@ -62,12 +63,89 @@ class OsuFile {
       return -1;
     this.lines[index] = `${this.lines[index].slice(0, this.lines[index].indexOf(":"))}: ${value}`;
   }
-  toString() {
-    return this.lines.join("\n");
-  }
+
   appendToDiffName(postfix) {
     this.filename = `${this.filename.substring(0, this.filename.lastIndexOf("]"))} ${postfix}].osu`;
   }
+
+  getTimingPoints() {
+    let timingPointsIndex = this.lines.findIndex(e => e.startsWith("[TimingPoints]"));
+    let timingPointsEndIndex = this.lines.findIndex((e, i) => i > timingPointsIndex && e.startsWith("["));
+    return this.lines
+      .filter((e, i) => (timingPointsIndex < i && i < timingPointsEndIndex))
+      .filter(e => e.trim() !== "")
+      .map(e => TimingPoint.fromString(e));
+  }
+
+  setTimingPoints(timingPoints) {
+    let timingPointsIndex = this.lines.findIndex(e => e.startsWith("[TimingPoints]"));
+    let timingPointsEndIndex = this.lines.findIndex((e, i) => i > timingPointsIndex && e.startsWith("["));
+    this.lines.splice(
+      timingPointsIndex + 1,
+      timingPointsEndIndex - timingPointsIndex - 1,
+      ...(timingPoints
+        .sort((a, b) => (a.offset - b.offset))
+        .map(e => e.toString()))
+    );
+  }
+
+  getTimingPointAt(time) {
+    return this.getTimingPoints()
+      .reverse()
+      .find(e => e.offset <= time);
+  }
+
+  getMainBPM() {
+    let bpms = new Map();
+    this.getTimingPoints().filter(point => point.msPerBeat > 0)
+      .forEach((point, i, arr) => {
+        let endTime = Infinity;
+        if (i + 1 >= arr.length) {
+          endTime = this.getHitObjects().pop().time;
+        } else {
+          endTime = arr[i + 1].offset;
+        }
+        let duration = endTime - point.offset;
+        if (!bpms.has(point.msPerBeat)) {
+          bpms.set(point.msPerBeat, 0);
+        }
+        bpms.set(point.msPerBeat, bpms.get(point.msPerBeat) + duration);
+      });
+    let mainBpm = 60000 / [...bpms.entries()]
+      .reduce(([mainMsPerBeat, maxCount], [msPerBeat, count]) => {
+        return count > maxCount ? [msPerBeat, count] : [mainMsPerBeat, maxCount];
+      }, [0, 0])[0];
+    return mainBpm;
+  }
+
+  getHitObjects() {
+    let hitObjectsIndex = this.lines.findIndex(e => e.startsWith("[HitObjects]"));
+    let hitObjectsEndIndex = this.lines.length;
+    return this.lines
+      .filter((e, i) => (hitObjectsIndex < i && i < hitObjectsEndIndex))
+      .filter(e => e.trim() !== "")
+      .map(e => HitObject.fromString(e));
+  }
+
+  /**
+   * @param {HitObject[]} hitObjects
+   */
+  setHitObjects(hitObjects) {
+    let hitObjectsIndex = this.lines.findIndex(e => e.startsWith("[HitObjects]"));
+    let hitObjectsEndIndex = this.lines.length;
+    this.lines.splice(
+      hitObjectsIndex + 1,
+      hitObjectsEndIndex - hitObjectsIndex - 1,
+      ...(hitObjects
+        .sort((a, b) => (a.time - b.time))
+        .map(e => e.toString()))
+    );
+  }
+
+  toString() {
+    return this.lines.join("\n");
+  }
+
   generateOsu() {
     return new Promise((resolve, reject) => {
       const filename = path.join(this.songsDirectory, this.dirname, this.filename);
@@ -177,6 +255,11 @@ async function setHP(osuFile, hp) {
 }
 exports.setHP = setHP;
 
+/**
+ * Scales the timing of entries in the osu file to the rate.
+ * @param {OsuFile} osuFile
+ * @param {number} rate
+ */
 async function setRate(osuFile, rate) {
   let difficulty = osuFile.getProperty("Version");
   let previewTime = parseInt(osuFile.getProperty("PreviewTime"));
@@ -186,9 +269,7 @@ async function setRate(osuFile, rate) {
   osuFile.setProperty("BeatmapID", 0);
   let breaksIndex = osuFile.lines.findIndex(e => e.startsWith("//Break Periods"));
   let breaksEndIndex = osuFile.lines.findIndex(e => e.startsWith("//Storyboard Layer 0"));
-  let timingPointsIndex = osuFile.lines.findIndex(e => e.startsWith("[TimingPoints]"));
-  let timingPointsEndIndex = osuFile.lines.findIndex((e, i) => i > timingPointsIndex && e.startsWith("["));
-  let hitObjectsIndex = osuFile.lines.findIndex(e => e.startsWith("[HitObjects]"));
+
   osuFile.lines = osuFile.lines.map((l, index) => {
     if (l.trim() !== "") {
       // is a break
@@ -196,29 +277,40 @@ async function setRate(osuFile, rate) {
         let [n, start, end] = l.split(",");
         return [n, Math.round(parseInt(start) / rate), Math.round(parseInt(end) / rate)].join(",");
       }
-      // is a timing point
-      if ((index > timingPointsIndex && index < timingPointsEndIndex)) {
-        let [time, msPerBeat, ...rest] = l.split(",");
-        msPerBeat = parseFloat(msPerBeat);
-        if (msPerBeat > 0)
-          msPerBeat = msPerBeat / rate;
-        return [Math.round(parseInt(time) / rate), msPerBeat, ...rest].join(",");
-      }
-      // is a hitobject
-      if (index > hitObjectsIndex) {
-        let [x, y, time, type, ...rest] = l.split(",");
-        if ((parseInt(type) & (8 | 128)) > 0) { // spinner (8) or mania hold note (128)
-          rest[1] = "" + Math.round(parseInt(rest[1]) / rate); // scale endTime;
-        }
-        return [x, y, Math.round(parseInt(time) / rate), type, ...rest].join(",");
-      }
     }
     return l;
   });
+
+  let timingPoints = osuFile.getTimingPoints();
+  for (let point of timingPoints) {
+    if (point.msPerBeat > 0) {
+      point.msPerBeat = Math.round(point.msPerBeat / rate);
+    }
+    point.offset = Math.round(point.offset / rate);
+  };
+  osuFile.setTimingPoints(timingPoints);
+
+  let hitObjects = osuFile.getHitObjects();
+  console.log(hitObjects.map(e => e.time));
+  for (let object of hitObjects) {
+    if (object instanceof Spinner || object instanceof HoldNote) {
+      object.endTime = Math.round(object.endTime / rate);
+    }
+    object.time = Math.round(object.time / rate);
+  }
+  console.log(hitObjects.map(e => e.time));
+  osuFile.setHitObjects(hitObjects);
+  console.log(osuFile.getHitObjects().map(e => e.time));
+
   osuFile.appendToDiffName(`${rate}x`);
   return osuFile;
 }
 exports.setRate = setRate;
+
+/**
+ * Splits the hit objects of a file by bookmarks.
+ * @param {OsuFile} osuFile
+ */
 async function splitByBookmarks(osuFile) {
   let difficulty = osuFile.getProperty("Version");
   if (!difficulty.includes("(Copy)")) {
@@ -257,6 +349,12 @@ async function splitByBookmarks(osuFile) {
   return files;
 }
 exports.splitByBookmarks = splitByBookmarks;
+
+/**
+ * Adds invisible spinners of combo to the beginning of the osu file.
+ * @param {OsuFile} osuFile
+ * @param {number} combo
+ */
 async function addCombo(osuFile, combo = 100) {
   let addCombo = combo;
   let oldComboMatch = osuFile.getProperty("Version").match(/\s[+][0-9]+x/);
@@ -269,101 +367,82 @@ async function addCombo(osuFile, combo = 100) {
   }
   osuFile.setProperty("Version", `${osuFile.getProperty("Version")} +${combo}x`);
   osuFile.setProperty("BeatmapID", 0);
-  let hitObjectsIndex = osuFile.lines.findIndex(e => e.startsWith("[HitObjects]"));
-  let timingPointsIndex = osuFile.lines.findIndex(e => e.startsWith("[TimingPoints]"));
-  let timingPointsEndIndex = osuFile.lines.findIndex((e, i) => i > timingPointsIndex && e.startsWith("["));
-  let firstObject = osuFile.lines.find((e, i) => (i > hitObjectsIndex && e.trim() !== ""));
-  let [x, y, time] = firstObject.split(",");
-  time = parseInt(time);
-  let spinnerTime = oldCombo ? time : time - 1000;
+
+  let hitObjects = osuFile.getHitObjects();
+  let firstObject = hitObjects[0];
+
+  let spinnerTime = oldCombo ? firstObject.time : firstObject.time - 1000;
   let spinners = [];
   for (let i = 0; i < addCombo; i++) {
-    spinners.push(`256,192,${spinnerTime},12,0,${spinnerTime},0:0:0:0:`);
+    hitObjects.push(new Spinner(256, 192, spinnerTime, 12, 0, spinnerTime, "0:0:0:0:"));
   }
-  osuFile.lines.splice(hitObjectsIndex + 1, 0, ...spinners);
+
+  osuFile.setHitObjects(hitObjects);
+
   if (!oldCombo) {
-    let [lastTimingPoint, lastTimingPointIndex] = osuFile.lines
-      .map((e, i) => [e, i])
-      .filter(([e], i) => i > timingPointsIndex && i < timingPointsEndIndex)
-      .reverse()
-      .find(([e]) => parseInt(e.split(",")[0]) <= time);
-    let [offset, msPerBeat, set, meter, index, volume, inherited, kiai] = lastTimingPoint.split(",");
+    let timingPoints = osuFile.getTimingPoints();
+    let lastTimingPoint = osuFile.getTimingPointAt(firstObject.time);
 
-    msPerBeat = parseFloat(msPerBeat);
-    if (msPerBeat > 0 && timingPointsIndex + 1 !== lastTimingPointIndex) {
-      msPerBeat = -100;
-      inherited = 1;
+    if (lastTimingPoint.msPerBeat > 0 && lastTimingPoint.offset !== timingPoints[0].offset) {
+      lastTimingPoint.msPerBeat = -100;
+      lastTimingPoint.inherited = 0;
     }
-    let silentPoint = [spinnerTime, msPerBeat, set, meter, index, 0, inherited, kiai];
+    let silentPoint = lastTimingPoint.clone();
+    silentPoint.offset = spinnerTime;
+    silentPoint.volume = 0;
+    timingPoints.push(silentPoint);
 
-    let addedPoints = [silentPoint.join(",")];
-    if (offset < time) {
-      addedPoints.push([time, msPerBeat, set, meter, index, volume, inherited, kiai].join(","));
+    if (lastTimingPoint.offset < firstObject.time) {
+      let startPoint = lastTimingPoint.clone();
+      startPoint.offset = firstObject.time;
+      timingPoints.push(startPoint);
     }
-    osuFile.lines.splice(lastTimingPointIndex, 0, ...addedPoints);
+
+    osuFile.setTimingPoints(timingPoints)
   }
   osuFile.appendToDiffName(`+${combo}x`);
   return osuFile;
 }
 exports.addCombo = addCombo;
+
+/**
+ * Removes SVs from an osu file.
+ * @param {OsuFile} osuFile
+ */
 async function removeSVs(osuFile) {
   if (osuFile.getProperty("Version").includes("No SVs")) {
     throw new Error("Map already has no SVs!");
   }
   osuFile.setProperty("Version", `${osuFile.getProperty("Version")} No SVs`);
   osuFile.setProperty("BeatmapID", 0);
-  let timingPointsIndex = osuFile.lines.findIndex(e => e.startsWith("[TimingPoints]"));
-  let timingPointsEndIndex = osuFile.lines.findIndex((e, i) => i > timingPointsIndex && e.startsWith("["));
-  let bpms = new Map();
-  osuFile.lines.filter((l, index) => {
-    return ((index > timingPointsIndex && index < timingPointsEndIndex));
-  }).filter(l => {
-    let [time, msPerBeat, ...rest] = l.split(",");
-    msPerBeat = parseFloat(msPerBeat);
-    return (msPerBeat > 0);
-  }).forEach((l, i, arr) => {
-    let [time, msPerBeat] = l.split(",");
-    if (i + 1 >= arr.length) {
-      let [x, y, endTime] = osuFile.lines[osuFile.lines.length - 2].split(",");
-      let duration = parseInt(endTime) - parseInt(time);
-      if (!bpms.has(msPerBeat))
-        bpms.set(msPerBeat, 0);
-      bpms.set(msPerBeat, bpms.get(msPerBeat) + duration);
-      return;
-    }
-    let [endTime] = arr[i + 1].split(",");
-    let duration = parseInt(endTime) - parseInt(time);
-    if (!bpms.has(msPerBeat))
-      bpms.set(msPerBeat, 0);
-    bpms.set(msPerBeat, bpms.get(msPerBeat) + duration);
-  });
-  let mainBpm = 60000 / [...bpms.entries()]
-    .reduce(([mainMsPerBeat, maxCount], [msPerBeat, count]) => {
-      return count > maxCount ? [msPerBeat, count] : [mainMsPerBeat, maxCount];
-    }, [0, 0])[0];
-  log("Estimated BPM:", mainBpm);
+
+  let mainBpm = osuFile.getMainBPM();
   let currentBpm = mainBpm;
-  osuFile.lines = osuFile.lines.map((l, index) => {
-    // is a timing point
-    if ((index > timingPointsIndex && index < timingPointsEndIndex)) {
-      let [time, msPerBeat, ...rest] = l.split(",");
-      msPerBeat = parseFloat(msPerBeat);
-      const bpm = 60000 / msPerBeat;
-      if (msPerBeat < 0) {
-        return [time, -100 * currentBpm / mainBpm, ...rest].join(",");
-      }
-      else {
-        rest[4] = 0;
-        currentBpm = bpm;
-        return `${l.trim()}\n${[time, -100 * bpm / mainBpm, ...rest].join(",")}`;
-      }
+
+  let timingPoints = osuFile.getTimingPoints();
+  timingPoints.forEach((point) => {
+    const bpm = 60000 / point.msPerBeat;
+    if (point.msPerBeat < 0) {
+      point.msPerBeat = -100 * currentBpm / mainBpm;
     }
-    return l;
+    else {
+      currentBpm = bpm;
+      let newPoint = point.clone()
+      newPoint.inherited = 0;
+      newPoint.msPerBeat = -100 * currentBpm / mainBpm;
+      timingPoints.push(newPoint);
+    }
   });
+  osuFile.setTimingPoints(timingPoints);
   osuFile.appendToDiffName("No SVs");
   return osuFile;
 }
 exports.removeSVs = removeSVs;
+
+/**
+ * Replaces mania hold notes with hit circles in an osu file.
+ * @param {OsuFile} osuFile
+ */
 async function removeLNs(osuFile) {
   if (osuFile.getProperty("Version").includes("No LNs")) {
     throw new Error("Map already has no LNs!");
@@ -371,20 +450,13 @@ async function removeLNs(osuFile) {
   osuFile.setProperty("Version", `${osuFile.getProperty("Version")} No LNs`);
   osuFile.setProperty("BeatmapID", 0);
   let hitObjectsIndex = osuFile.lines.findIndex(e => e.startsWith("[HitObjects]"));
-  osuFile.lines = osuFile.lines.map((l, index) => {
-    if (l.trim() !== "") {
-      // is a hitobject
-      if (index > hitObjectsIndex) {
-        let [x, y, time, type, ...rest] = l.split(",");
-        if ((parseInt(type) & 128) > 0) { // mania hold note (128)
-          type = type & ~128 | 1;
-          rest = [rest[0], rest[1].split(":").slice(1).join(":")];
-        }
-        return [x, y, time, type, ...rest].join(",");
-      }
+  osuFile.setHitObjects(osuFile.getHitObjects().map(object => {
+    if (object instanceof HoldNote) {
+      let { x, y, time, type, hitSound, extras } = object;
+      return new HitCircle(x, y, time, type & ~128 | 1, hitSound, extras);
     }
-    return l;
-  });
+    return object
+  }));
   osuFile.appendToDiffName("No LNs");
   return osuFile;
 }
