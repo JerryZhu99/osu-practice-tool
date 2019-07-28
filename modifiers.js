@@ -1,12 +1,12 @@
-const fs = require('fs');
-const path = require('path');
-const { spawn } = require('child_process');
-const ffmpegPath = require('@ffmpeg-installer/ffmpeg').path;
-const archiver = require('archiver');
-const remote = require('electron').remote;
+const fs = require("fs");
+const path = require("path");
+const { spawn } = require("child_process");
+const ffmpegPath = require("@ffmpeg-installer/ffmpeg").path;
+const archiver = require("archiver");
+const remote = require("electron").remote;
 
-const { log, setCurrentFile, setStatus } = require('./renderer');
-const settings = require('./settings');
+const { log, setCurrentFile, setStatus } = require("./renderer");
+const settings = require("./settings");
 
 class OsuFile {
 
@@ -36,7 +36,7 @@ class OsuFile {
    * @param {string} songsDirectory
    */
   constructor(data, filename, dirname, songsDirectory) {
-    if (data) this.lines = data.toString("UTF-8").split('\n');
+    if (data) this.lines = data.toString("UTF-8").split("\n");
     this.filename = filename;
     this.dirname = dirname;
     this.songsDirectory = songsDirectory;
@@ -72,7 +72,7 @@ class OsuFile {
   }
 
   toString() {
-    return this.lines.join('\n');
+    return this.lines.join("\n");
   }
 
   appendToDiffName(postfix) {
@@ -92,10 +92,10 @@ class OsuFile {
   generateOsz(archiveCallback) {
     let oszFileName = path.join(this.songsDirectory, `${this.dirname}.osz`);
     let output = fs.createWriteStream(oszFileName);
-    let archive = archiver('zip', {
+    let archive = archiver("zip", {
       zlib: { level: 0 } // Sets the compression level.
     });
-    archive.on('error', function (err) {
+    archive.on("error", function (err) {
       throw err;
     });
     archive.pipe(output);
@@ -114,367 +114,217 @@ class OsuFile {
 }
 
 
-async function generateOszWithCS(osupath, cs = 0) {
-  log(`Generating CS${cs} edit for ${osupath}`);
-  setStatus('Reading .osu file...', 1);
-  try {
-    let osuFile = await OsuFile.fromFile(osupath);
+async function setCS(osuFile, cs) {
+  let difficulty = osuFile.getProperty("Version")
+  let circleSize = osuFile.getProperty("CircleSize");
 
-    setStatus('Processing .osu file...');
-    let difficulty = osuFile.getProperty("Version")
-    let circleSize = osuFile.getProperty("CircleSize");
-
-    if (parseFloat(circleSize) === cs) {
-      log(`CS is already ${cs}!`);
-      setStatus(`CS is already ${cs}!`, -1);
-      return;
-    }
-
-    // Required to fix older file formats
-    if (!Number.isInteger(cs) && osuFile.getVersion() < 13) osuFile.setVersion(13);
-
-    osuFile.setProperty("Version", `${difficulty} CS${cs}`);
-    osuFile.setProperty("BeatmapID", 0);
-    osuFile.setProperty("CircleSize", cs);
-    osuFile.appendToDiffName(`CS${cs}`);
-
-    setStatus('Generating .osu file...');
-    await osuFile.generateOsu();
-  } catch (e) {
-    setStatus('An error occurred.', -1);
-    log(e);
-    throw e;
+  if (parseFloat(circleSize) === cs) {
+    throw new Error(`CS is already ${cs}!`);
   }
-  setStatus('Done!', -1);
+
+  // Required to fix older file formats
+  if (!Number.isInteger(cs) && osuFile.getVersion() < 13) osuFile.setVersion(13);
+
+  osuFile.setProperty("Version", `${difficulty} CS${cs}`);
+  osuFile.setProperty("BeatmapID", 0);
+  osuFile.setProperty("CircleSize", cs);
+  osuFile.appendToDiffName(`CS${cs}`);
+  return osuFile;
 }
 
-async function generateOszWithAR(osupath, ar = 0) {
-  log(`Generating AR${ar} edit for ${osupath}`);
-  setStatus('Reading .osu file...', 1);
-  try {
-    let osuFile = await OsuFile.fromFile(osupath);
+async function setAR(osuFile, ar) {
+  let difficulty = osuFile.getProperty("Version")
+  let approachRate = osuFile.getProperty("ApproachRate");
 
-    setStatus('Processing .osu file...');
-    let difficulty = osuFile.getProperty("Version")
-    let approachRate = osuFile.getProperty("ApproachRate");
-
-    if (!approachRate) {
-      // For older map without AR, insert AR after OD.
-      let odIndex = osuFile.lines.findIndex(e => e.startsWith("OverallDifficulty"));
-      osuFile.lines.splice(odIndex + 1, 0, `ApproachRate:-1`);
-      approachRate = -1;
-    }
-
-    if (parseFloat(approachRate) === ar) {
-      log(`AR is already ${ar}!`);
-      setStatus(`AR is already ${ar}!`, -1);
-      return;
-    }
-
-    // Required to fix older file formats
-    if (!Number.isInteger(ar) && osuFile.getVersion() < 13) osuFile.setVersion(13);
-
-    osuFile.setProperty("Version", `${difficulty} AR${ar}`);
-    osuFile.setProperty("BeatmapID", 0);
-    osuFile.setProperty("ApproachRate", ar);
-    osuFile.appendToDiffName(`AR${ar}`);
-
-    setStatus('Generating .osu file...');
-    await osuFile.generateOsu();
-
-  } catch (e) {
-    setStatus('An error occurred.', -1);
-    log(e);
-    throw e;
+  if (!approachRate) {
+    // For older map without AR, insert AR after OD.
+    let odIndex = osuFile.lines.findIndex(e => e.startsWith("OverallDifficulty"));
+    osuFile.lines.splice(odIndex + 1, 0, `ApproachRate:-1`);
+    approachRate = -1;
   }
-  setStatus('Done!', -1);
+
+  if (parseFloat(approachRate) === ar) {
+    throw new Error(`AR is already ${ar}!`);
+  }
+
+  // Required to fix older file formats
+  if (!Number.isInteger(ar) && osuFile.getVersion() < 13) osuFile.setVersion(13);
+
+  osuFile.setProperty("Version", `${difficulty} AR${ar}`);
+  osuFile.setProperty("BeatmapID", 0);
+  osuFile.setProperty("ApproachRate", ar);
+  osuFile.appendToDiffName(`AR${ar}`);
+  return osuFile;
 }
 
 
-async function generateOszWithOD(osupath, od = 0) {
-  log(`Generating OD${od} edit for ${osupath}`);
-  setStatus('Reading .osu file...', 1);
-  try {
-    let osuFile = await OsuFile.fromFile(osupath);
+async function setOD(osuFile, od) {
+  log(`Generating OD${od} edit for ${osuFile.filename}`);
+  let difficulty = osuFile.getProperty("Version")
+  let overallDifficulty = osuFile.getProperty("OverallDifficulty");
 
-    setStatus('Processing .osu file...');
-    let difficulty = osuFile.getProperty("Version")
-    let overallDifficulty = osuFile.getProperty("OverallDifficulty");
-
-    if (parseFloat(overallDifficulty) === od) {
-      log(`OD is already ${od}!`);
-      setStatus(`OD is already ${od}!`, -1);
-      return;
-    }
-
-    // Required to fix older file formats
-    if (!Number.isInteger(od) && osuFile.getVersion() < 13) osuFile.setVersion(13);
-
-    osuFile.setProperty("Version", `${difficulty} OD${od}`);
-    osuFile.setProperty("BeatmapID", 0);
-    osuFile.setProperty("OverallDifficulty", od);
-    osuFile.appendToDiffName(`OD${od}`);
-
-    setStatus('Generating .osu file...');
-    await osuFile.generateOsu();
-  } catch (e) {
-    setStatus('An error occurred.', -1);
-    log(e);
-    throw e;
+  if (parseFloat(overallDifficulty) === od) {
+    throw new Error(`OD is already ${od}!`);
   }
-  setStatus('Done!', -1);
+
+  // Required to fix older file formats
+  if (!Number.isInteger(od) && osuFile.getVersion() < 13) osuFile.setVersion(13);
+
+  osuFile.setProperty("Version", `${difficulty} OD${od}`);
+  osuFile.setProperty("BeatmapID", 0);
+  osuFile.setProperty("OverallDifficulty", od);
+  osuFile.appendToDiffName(`OD${od}`);
+  return osuFile;
 }
 
-async function generateOszWithHP(osupath, hp = 0) {
-  log(`Generating HP${hp} edit for ${osupath}`);
-  setStatus('Reading .osu file...', 1);
-  try {
-    let osuFile = await OsuFile.fromFile(osupath);
+async function setHP(osuFile, hp) {
+  log(`Generating HP${hp} edit for ${osuFile.filename}`);
 
-    setStatus('Processing .osu file...');
-    let difficulty = osuFile.getProperty("Version")
-    let hpDrainRate = osuFile.getProperty("HPDrainRate");
+  let difficulty = osuFile.getProperty("Version")
+  let hpDrainRate = osuFile.getProperty("HPDrainRate");
 
-    if (parseFloat(hpDrainRate) === hp) {
-      log(`HP is already ${hp}!`);
-      setStatus(`HP is already ${hp}!`, -1);
-      return;
-    }
-
-    // Required to fix older file formats
-    if (!Number.isInteger(hp) && osuFile.getVersion() < 13) osuFile.setVersion(13);
-
-    osuFile.setProperty("Version", `${difficulty} HP${hp}`);
-    osuFile.setProperty("BeatmapID", 0);
-    osuFile.setProperty("HPDrainRate", hp);
-    osuFile.appendToDiffName(`HP${hp}`);
-
-    setStatus('Generating .osu file...');
-    await osuFile.generateOsu();
-  } catch (e) {
-    setStatus('An error occurred.', -1);
-    log(e);
-    throw e;
+  if (parseFloat(hpDrainRate) === hp) {
+    log(`HP is already ${hp}!`);
+    setStatus(`HP is already ${hp}!`, -1);
+    return;
   }
-  setStatus('Done!', -1);
+
+  // Required to fix older file formats
+  if (!Number.isInteger(hp) && osuFile.getVersion() < 13) osuFile.setVersion(13);
+
+  osuFile.setProperty("Version", `${difficulty} HP${hp}`);
+  osuFile.setProperty("BeatmapID", 0);
+  osuFile.setProperty("HPDrainRate", hp);
+  osuFile.appendToDiffName(`HP${hp}`);
+  return osuFile;
 }
 
 
-async function generateOszWithRate(osupath, rate = 1.33) {
-  try {
-    log(`Generating ${rate}x edit for ${osupath}`);
-    setStatus('Reading .osu file...', 1);
-    let osuFile = await OsuFile.fromFile(osupath);
-    setStatus('Processing .osu file...');
+async function generateMp3WithRate(filename, rate) {
+  const tempFilename = path.join(remote.app.getPath("temp"), `${Date.now()}-${Math.random()}.mp3`);
 
-    let difficulty = osuFile.getProperty("Version");
-    let previewTime = parseInt(osuFile.getProperty("PreviewTime"));
-    let sliderMultiplier = parseFloat(osuFile.getProperty("SliderMultiplier"));
-    let audioFilename = osuFile.getProperty("AudioFilename");
+  const args = ["-y",
+    "-i",
+    `"${filename}"`,
+    "-filter:a",
+    settings.get("pitchShift") ? `"aresample=192k/${rate},asetrate=192k"` : `"atempo=${rate}"`,
+    "-vn",
+    `"${tempFilename}"`];
+  let ffmpeg = spawn(ffmpegPath, args, { windowsVerbatimArguments: true });
 
-    osuFile.setProperty("Version", `${difficulty} ${rate}x`);
-    osuFile.setProperty("PreviewTime", Math.round(previewTime / rate));
-    osuFile.setProperty("BeatmapID", 0);
+  ffmpeg
+    .stderr
+    .on("data", (err) => {
+      log(new String(err))
+    });
 
-    let breaksIndex = osuFile.lines.findIndex(e => e.startsWith("//Break Periods"))
-    let breaksEndIndex = osuFile.lines.findIndex(e => e.startsWith("//Storyboard Layer 0"))
-    let timingPointsIndex = osuFile.lines.findIndex(e => e.startsWith("[TimingPoints]"))
-    let timingPointsEndIndex = osuFile.lines.findIndex((e, i) => i > timingPointsIndex && e.startsWith("["))
-    let hitObjectsIndex = osuFile.lines.findIndex(e => e.startsWith("[HitObjects]"))
+  let statusCode = await new Promise((resolve) => ffmpeg.on("exit", resolve));
 
-    osuFile.lines = osuFile.lines.map((l, index) => {
-      if (l.trim() !== "") {
-        // is a break
-        if ((index > breaksIndex && index < breaksEndIndex)) {
-          let [n, start, end] = l.split(",");
-          return [n, Math.round(parseInt(start) / rate), Math.round(parseInt(end) / rate)].join(",");
-        }
+  if (statusCode === 0) {
+    return tempFilename;
+  } else {
+    throw new Error("An error occured in ffmpeg");
+  }
+}
 
-        // is a timing point
-        if ((index > timingPointsIndex && index < timingPointsEndIndex)) {
-          let [time, msPerBeat, ...rest] = l.split(",");
-          msPerBeat = parseFloat(msPerBeat);
-          if (msPerBeat > 0) msPerBeat = msPerBeat / rate;
-          return [Math.round(parseInt(time) / rate), msPerBeat, ...rest].join(",");
-        }
+async function setRate(osuFile, rate) {
+  let difficulty = osuFile.getProperty("Version");
+  let previewTime = parseInt(osuFile.getProperty("PreviewTime"));
+  let sliderMultiplier = parseFloat(osuFile.getProperty("SliderMultiplier"));
 
-        // is a hitobject
-        if (index > hitObjectsIndex) {
-          let [x, y, time, type, ...rest] = l.split(",");
-          if ((parseInt(type) & (8 | 128)) > 0) { // spinner (8) or mania hold note (128)
-            rest[1] = "" + Math.round(parseInt(rest[1]) / rate); // scale endTime;
-          }
-          return [x, y, Math.round(parseInt(time) / rate), type, ...rest].join(",");
-        }
+  osuFile.setProperty("Version", `${difficulty} ${rate}x`);
+  osuFile.setProperty("PreviewTime", Math.round(previewTime / rate));
+  osuFile.setProperty("BeatmapID", 0);
+
+  let breaksIndex = osuFile.lines.findIndex(e => e.startsWith("//Break Periods"))
+  let breaksEndIndex = osuFile.lines.findIndex(e => e.startsWith("//Storyboard Layer 0"))
+  let timingPointsIndex = osuFile.lines.findIndex(e => e.startsWith("[TimingPoints]"))
+  let timingPointsEndIndex = osuFile.lines.findIndex((e, i) => i > timingPointsIndex && e.startsWith("["))
+  let hitObjectsIndex = osuFile.lines.findIndex(e => e.startsWith("[HitObjects]"))
+
+  osuFile.lines = osuFile.lines.map((l, index) => {
+    if (l.trim() !== "") {
+      // is a break
+      if ((index > breaksIndex && index < breaksEndIndex)) {
+        let [n, start, end] = l.split(",");
+        return [n, Math.round(parseInt(start) / rate), Math.round(parseInt(end) / rate)].join(",");
       }
-      return l;
-    })
 
-    setStatus('Generating modified .mp3 file...')
-    const { songsDirectory, dirname } = osuFile;
+      // is a timing point
+      if ((index > timingPointsIndex && index < timingPointsEndIndex)) {
+        let [time, msPerBeat, ...rest] = l.split(",");
+        msPerBeat = parseFloat(msPerBeat);
+        if (msPerBeat > 0) msPerBeat = msPerBeat / rate;
+        return [Math.round(parseInt(time) / rate), msPerBeat, ...rest].join(",");
+      }
 
-    const tempFilename = `${Date.now()}-${Math.random()}.mp3`;
+      // is a hitobject
+      if (index > hitObjectsIndex) {
+        let [x, y, time, type, ...rest] = l.split(",");
+        if ((parseInt(type) & (8 | 128)) > 0) { // spinner (8) or mania hold note (128)
+          rest[1] = "" + Math.round(parseInt(rest[1]) / rate); // scale endTime;
+        }
+        return [x, y, Math.round(parseInt(time) / rate), type, ...rest].join(",");
+      }
+    }
+    return l;
+  })
 
-    const args = ['-y',
-      '-i',
-      `"${path.join(songsDirectory, dirname, audioFilename)}"`,
-      '-filter:a',
-      settings.get('pitchShift') ? `"aresample=192k/${rate},asetrate=192k"` : `"atempo=${rate}"`,
-      '-vn',
-      `"${path.join(remote.app.getPath('temp'), tempFilename)}"`];
-    let ffmpeg = spawn(ffmpegPath, args, { windowsVerbatimArguments: true });
+  osuFile.appendToDiffName(`${rate}x`);
+  return osuFile;
+}
 
-    ffmpeg.on('exit', async (statusCode) => {
-      if (statusCode === 0) {
-        log('conversion successful');
+async function splitByBookmarks(osuFile) {
+  log(`Generating split for ${osuFile.filename}`);
+  setStatus("Processing .osu file...");
+
+  let difficulty = osuFile.getProperty("Version");
+
+  if (!difficulty.includes("(Copy)")) {
+    throw new Error("The map is not a copy.");
+  }
+
+  difficulty = `${difficulty.split("(Copy)")[0]}`;
+
+  const bookmarks = (osuFile.getProperty("Bookmarks") || "")
+    .split(",")
+    .filter(e => (e.trim().length > 0))
+    .map(e => parseInt(e));
+
+  if (bookmarks.length == 0) {
+    throw new Error("No bookmarks set!.");
+  }
+  const sections = [0, ...bookmarks.sort((a, b) => (a - b)), Infinity];
+
+  const hitObjectsIndex = osuFile.lines.findIndex(e => e.startsWith("[HitObjects]"))
+
+  const files = [];
+
+  for (let i = 1; i < sections.length; i++) {
+    const start = sections[i - 1];
+    const end = sections[i];
+    const sectionFile = osuFile.clone();
+
+    sectionFile.setProperty("Version", `${difficulty} (Split ${i})`);
+    sectionFile.setProperty("BeatmapID", 0);
+    sectionFile.appendToDiffName(i);
+
+    sectionFile.lines = sectionFile.lines.filter((line, index) => {
+      if (index > hitObjectsIndex) {
+        let [x, y, time, ...rest] = line.split(",");
+        time = parseInt(time);
+        return (start <= time && time <= end);
       } else {
-        log("An error occured in ffmpeg");
-        setStatus("An error occured in ffmpeg", -1);
-        return;
+        return true;
       }
-      try {
-        osuFile.appendToDiffName(`${rate}x`);
-
-        setStatus('Generating .osz file...')
-
-        const archiveCallback = (archive) => {
-          archive.file(path.join(remote.app.getPath('temp'), tempFilename), { name: audioFilename });
-          archive.glob("*.png", { cwd: path.join(songsDirectory, dirname) });
-          archive.glob("*.jpg", { cwd: path.join(songsDirectory, dirname) });
-        }
-
-        osuFile.dirname = `${osuFile.dirname} ${rate}`;
-        await osuFile.generateOsz(archiveCallback);
-
-        fs.unlinkSync(path.join(remote.app.getPath('temp'), tempFilename));
-      } catch (e) {
-        setStatus('An error occurred.', -1);
-        log(e);
-        throw e;
-      }
-      log('Done!');
-      setStatus('Done!', -1);
-    })
-
-    ffmpeg
-      .stderr
-      .on('data', (err) => {
-        log(new String(err))
-      });
-
-  } catch (e) {
-    setStatus('An error occurred.', -1);
-    log(e);
-    throw e;
+    });
+    files.push(sectionFile);
   }
+
+  return files;
 }
 
-async function generateOszWithCopy(osupath) {
-  try {
-    log(`Generating copy for ${osupath}`);
-    setStatus('Reading .osu file...', 1);
-    let osuFile = await OsuFile.fromFile(osupath);
-    setStatus('Processing .osu file...');
-
-    let difficulty = osuFile.getProperty("Version");
-    osuFile.setProperty("Version", `${difficulty} (Copy)`);
-    osuFile.setProperty("BeatmapID", 0);
-
-    osuFile.appendToDiffName(`(Copy)`);
-
-    setStatus('Generating .osz file...')
-
-    const { songsDirectory, dirname } = osuFile;
-
-    const archiveCallback = (archive) => {
-      archive.glob("*.mp3", { cwd: path.join(songsDirectory, dirname) });
-      archive.glob("*.png", { cwd: path.join(songsDirectory, dirname) });
-      archive.glob("*.jpg", { cwd: path.join(songsDirectory, dirname) });
-    }
-
-    osuFile.dirname = `${osuFile.dirname} Copy`;
-    await osuFile.generateOsz(archiveCallback);
-    log('Done!');
-    setStatus('Done!', -1);
-  } catch (e) {
-    setStatus('An error occurred.', -1);
-    log(e);
-    throw e;
-  }
-}
-
-
-async function generateOszWithSplit(osupath) {
-  try {
-    log(`Generating split for ${osupath}`);
-    setStatus('Reading .osu file...', 1);
-    let osuFile = await OsuFile.fromFile(osupath);
-    setStatus('Processing .osu file...');
-
-    let difficulty = osuFile.getProperty("Version");
-
-    if (!difficulty.includes('(Copy)')) {
-      setStatus('The map is not a copy.', -1);
-      log('The map is not a copy.');
-      return;
-    }
-
-    difficulty = `${difficulty.split('(Copy)')[0]}`;
-
-    osuFile.setProperty("BeatmapID", 0);
-
-    const bookmarks = (osuFile.getProperty('Bookmarks') || '')
-      .split(",")
-      .filter(e => (e.trim().length > 0))
-      .map(e => parseInt(e));
-
-    if (bookmarks.length == 0) {
-      setStatus('No bookmarks set!.', -1);
-      log('No bookmarks set!');
-      return;
-    }
-    const sections = [0, ...bookmarks.sort((a, b) => (a - b)), Infinity];
-
-    const hitObjectsIndex = osuFile.lines.findIndex(e => e.startsWith("[HitObjects]"))
-
-    const promises = [];
-
-    for (let i = 1; i < sections.length; i++) {
-      const start = sections[i - 1];
-      const end = sections[i];
-      const sectionFile = osuFile.clone();
-
-      sectionFile.setProperty("Version", `${difficulty} (Split ${i})`);
-      sectionFile.appendToDiffName(i);
-
-      sectionFile.lines = sectionFile.lines.filter((line, index) => {
-        if (index > hitObjectsIndex) {
-          let [x, y, time, ...rest] = line.split(",");
-          time = parseInt(time);
-          return (start <= time && time <= end);
-        } else {
-          return true;
-        }
-      })
-
-      await sectionFile.generateOsu();
-    }
-    log('Done!');
-    setStatus('Done!', -1);
-  } catch (e) {
-    setStatus('An error occurred.', -1);
-    log(e);
-    throw e;
-  }
-}
-
-async function generateOszWithCombo(osupath, combo = 100) {
-  log(`Generating +${combo} combo edit for ${osupath}`);
-  setStatus('Reading .osu file...');
-
-  let osuFile = await OsuFile.fromFile(osupath);
-  setStatus('Processing .osu file...');
-
+async function addCombo(osuFile, combo = 100) {
   let addCombo = combo;
 
   let oldComboMatch = osuFile.getProperty("Version").match(/\s[+][0-9]+x/);
@@ -482,8 +332,8 @@ async function generateOszWithCombo(osupath, combo = 100) {
   if (oldComboMatch) {
     oldCombo = parseInt(oldComboMatch[0]);
     combo = oldCombo + addCombo;
-    osuFile.setProperty("Version", osuFile.getProperty("Version").replace(/\s[+][0-9]+x/, ''));
-    osuFile.filename = osuFile.filename.replace(/\s[+][0-9]+x/, '')
+    osuFile.setProperty("Version", osuFile.getProperty("Version").replace(/\s[+][0-9]+x/, ""));
+    osuFile.filename = osuFile.filename.replace(/\s[+][0-9]+x/, "")
   }
 
   osuFile.setProperty("Version", `${osuFile.getProperty("Version")} +${combo}x`);
@@ -529,104 +379,75 @@ async function generateOszWithCombo(osupath, combo = 100) {
     osuFile.lines.splice(lastTimingPointIndex, 0, ...addedPoints)
   }
   osuFile.appendToDiffName(`+${combo}x`);
-
-  setStatus('Generating .osu file...');
-  osuFile.generateOsu();
-  log('Done!');
-  setStatus('Done!');
+  return osuFile;
 }
 
-async function generateOszWithNoSVs(osupath) {
-  try {
-    log(`Generating No SVs edit for ${osupath}`);
-    setStatus('Reading .osu file...', 1);
-    let osuFile = await OsuFile.fromFile(osupath);
 
-    setStatus('Processing .osu file...');
+async function removeSVs(osuFile) {
+  if (osuFile.getProperty("Version").includes("No SVs")) {
+    throw new Error("Map already has no SVs!");
+  }
 
-    if (osuFile.getProperty("Version").includes('No SVs')) {
-      log('Map already has no SVs!');
-      setStatus('Map already has no SVs!', -1);
-      return;
-    }
+  osuFile.setProperty("Version", `${osuFile.getProperty("Version")} No SVs`);
+  osuFile.setProperty("BeatmapID", 0);
 
-    osuFile.setProperty("Version", `${osuFile.getProperty("Version")} No SVs`);
-    osuFile.setProperty("BeatmapID", 0);
+  let timingPointsIndex = osuFile.lines.findIndex(e => e.startsWith("[TimingPoints]"))
+  let timingPointsEndIndex = osuFile.lines.findIndex((e, i) => i > timingPointsIndex && e.startsWith("["))
 
-    let timingPointsIndex = osuFile.lines.findIndex(e => e.startsWith("[TimingPoints]"))
-    let timingPointsEndIndex = osuFile.lines.findIndex((e, i) => i > timingPointsIndex && e.startsWith("["))
-
-    let bpms = new Map();
-    osuFile.lines.filter((l, index) => {
-      return ((index > timingPointsIndex && index < timingPointsEndIndex))
-    }).filter(l => {
-      let [time, msPerBeat, ...rest] = l.split(",");
-      msPerBeat = parseFloat(msPerBeat);
-      return (msPerBeat > 0);
-    }).forEach((l, i, arr) => {
-      let [time, msPerBeat] = l.split(",");
-      if (i + 1 >= arr.length) {
-        let [x, y, endTime] = osuFile.lines[osuFile.lines.length - 2].split(",");
-        let duration = parseInt(endTime) - parseInt(time);
-        if (!bpms.has(msPerBeat)) bpms.set(msPerBeat, 0);
-        bpms.set(msPerBeat, bpms.get(msPerBeat) + duration);
-        return;
-      }
-      let [endTime] = arr[i + 1].split(",");
+  let bpms = new Map();
+  osuFile.lines.filter((l, index) => {
+    return ((index > timingPointsIndex && index < timingPointsEndIndex))
+  }).filter(l => {
+    let [time, msPerBeat, ...rest] = l.split(",");
+    msPerBeat = parseFloat(msPerBeat);
+    return (msPerBeat > 0);
+  }).forEach((l, i, arr) => {
+    let [time, msPerBeat] = l.split(",");
+    if (i + 1 >= arr.length) {
+      let [x, y, endTime] = osuFile.lines[osuFile.lines.length - 2].split(",");
       let duration = parseInt(endTime) - parseInt(time);
       if (!bpms.has(msPerBeat)) bpms.set(msPerBeat, 0);
       bpms.set(msPerBeat, bpms.get(msPerBeat) + duration);
-    });
+      return;
+    }
+    let [endTime] = arr[i + 1].split(",");
+    let duration = parseInt(endTime) - parseInt(time);
+    if (!bpms.has(msPerBeat)) bpms.set(msPerBeat, 0);
+    bpms.set(msPerBeat, bpms.get(msPerBeat) + duration);
+  });
 
-    let mainBpm = 60000 / [...bpms.entries()]
-      .reduce(([mainMsPerBeat, maxCount], [msPerBeat, count]) => {
-        return count > maxCount ? [msPerBeat, count] : [mainMsPerBeat, maxCount]
-      }, [0, 0])[0];
+  let mainBpm = 60000 / [...bpms.entries()]
+    .reduce(([mainMsPerBeat, maxCount], [msPerBeat, count]) => {
+      return count > maxCount ? [msPerBeat, count] : [mainMsPerBeat, maxCount]
+    }, [0, 0])[0];
 
-    log("Estimated BPM:", mainBpm);
-    let currentBpm = mainBpm;
+  log("Estimated BPM:", mainBpm);
+  let currentBpm = mainBpm;
 
-    osuFile.lines = osuFile.lines.map((l, index) => {
-      // is a timing point
-      if ((index > timingPointsIndex && index < timingPointsEndIndex)) {
-        let [time, msPerBeat, ...rest] = l.split(",");
-        msPerBeat = parseFloat(msPerBeat);
-        const bpm = 60000 / msPerBeat;
-        if (msPerBeat < 0) {
-          return [time, -100 * currentBpm / mainBpm, ...rest].join(",");
-        } else {
-          rest[4] = 0;
-          currentBpm = bpm;
-          return `${l.trim()}\n${[time, -100 * bpm / mainBpm, ...rest].join(",")}`;
-        }
+  osuFile.lines = osuFile.lines.map((l, index) => {
+    // is a timing point
+    if ((index > timingPointsIndex && index < timingPointsEndIndex)) {
+      let [time, msPerBeat, ...rest] = l.split(",");
+      msPerBeat = parseFloat(msPerBeat);
+      const bpm = 60000 / msPerBeat;
+      if (msPerBeat < 0) {
+        return [time, -100 * currentBpm / mainBpm, ...rest].join(",");
+      } else {
+        rest[4] = 0;
+        currentBpm = bpm;
+        return `${l.trim()}\n${[time, -100 * bpm / mainBpm, ...rest].join(",")}`;
       }
-      return l;
-    })
+    }
+    return l;
+  })
 
-    osuFile.appendToDiffName('No SVs');
-
-    setStatus('Generating .osu file...')
-    await osuFile.generateOsu();
-  } catch (e) {
-    setStatus('An error occurred.', -1);
-    log(e);
-    throw e;
-  }
-  log('Done!');
-  setStatus('Done!', -1);
+  osuFile.appendToDiffName("No SVs");
+  return osuFile;
 }
 
-async function generateOszWithNoLNs(osupath) {
-  log(`Generating No LNs edit for ${osupath}`);
-  setStatus('Reading .osu file...');
-
-  let osuFile = await OsuFile.fromFile(osupath);
-  setStatus('Processing .osu file...');
-
-  if (osuFile.getProperty("Version").includes('No LNs')) {
-    log('Map already has no LNs!');
-    setStatus('Map already has no LNs!');
-    return;
+async function removeLNs(osuFile) {
+  if (osuFile.getProperty("Version").includes("No LNs")) {
+    throw new Error("Map already has no LNs!");
   }
 
   osuFile.setProperty("Version", `${osuFile.getProperty("Version")} No LNs`);
@@ -649,13 +470,146 @@ async function generateOszWithNoLNs(osupath) {
     return l;
   })
 
-  osuFile.appendToDiffName('No LNs');
-
-  setStatus('Generating .osu file...');
-  osuFile.generateOsu();
-  log('Done!');
-  setStatus('Done!');
+  osuFile.appendToDiffName("No LNs");
+  return osuFile;
 }
+
+async function generateOszWithFunction(osupath, fn, ...args) {
+  try {
+    setStatus("Reading .osu file...", 1);
+    let osuFile = await OsuFile.fromFile(osupath);
+    setStatus("Processing .osu file...");
+    await fn(osuFile, ...args);
+    setStatus("Generating .osu file...");
+    await osuFile.generateOsu();
+    setStatus("Done!", -1);
+    log("Done!");
+  } catch (e) {
+    setStatus("An error occurred.", -1);
+    log(e);
+  }
+}
+
+async function generateOszWithCS(osupath, cs = 0) {
+  log(`Generating CS${cs} edit for ${osupath}`);
+  return generateOszWithFunction(osupath, setCS, cs);
+}
+
+async function generateOszWithAR(osupath, ar = 0) {
+  log(`Generating AR${ar} edit for ${osupath}`);
+  return generateOszWithFunction(osupath, setAR, ar);
+}
+
+async function generateOszWithOD(osupath, od = 0) {
+  log(`Generating OD${od} edit for ${osupath}`);
+  return generateOszWithFunction(osupath, setOD, od);
+}
+
+async function generateOszWithHP(osupath, hp = 0) {
+  log(`Generating HP${hp} edit for ${osupath}`);
+  return generateOszWithFunction(osupath, setHP, hp);
+}
+
+async function generateOszWithRate(osupath, rate) {
+  log(`Generating ${rate}x edit for ${osupath}`);
+
+  try {
+    setStatus("Reading .osu file...", 1);
+    let osuFile = await OsuFile.fromFile(osupath);
+
+    setStatus("Processing .osu file...");
+    await setRate(osuFile, rate);
+
+    setStatus("Gnerating modified .mp3 file")
+    let audioFilename = osuFile.getProperty("AudioFilename");
+    let { songsDirectory, dirname } = osuFile;
+    let audioFilePath = path.join(songsDirectory, dirname, audioFilename);
+    let tempFilename = await generateMp3WithRate(audioFilePath, rate);
+
+    setStatus("Generating .osz file...")
+
+    const archiveCallback = (archive) => {
+      archive.file(tempFilename, { name: audioFilename });
+      archive.glob("*.png", { cwd: path.join(songsDirectory, dirname) });
+      archive.glob("*.jpg", { cwd: path.join(songsDirectory, dirname) });
+    }
+
+    osuFile.dirname = `${dirname} ${rate}`;
+    await osuFile.generateOsz(archiveCallback);
+
+    fs.unlinkSync(tempFilename);
+    setStatus("Done!", -1)
+    log("Done!");
+  } catch (e) {
+    setStatus("An error occurred.", -1);
+    log(e);
+  }
+}
+
+async function generateOszWithCopy(osupath) {
+  log(`Generating copy for ${osupath}`);
+  try {
+    setStatus("Reading .osu file...", 1);
+    let osuFile = await OsuFile.fromFile(osupath);
+
+    setStatus("Processing .osu file...");
+
+    let difficulty = osuFile.getProperty("Version");
+    osuFile.setProperty("Version", `${difficulty} (Copy)`);
+    osuFile.setProperty("BeatmapID", 0);
+
+    osuFile.appendToDiffName(`(Copy)`);
+
+    setStatus("Generating .osz file...")
+
+    const { songsDirectory, dirname } = osuFile;
+
+    const archiveCallback = (archive) => {
+      archive.glob("*.mp3", { cwd: path.join(songsDirectory, dirname) });
+      archive.glob("*.png", { cwd: path.join(songsDirectory, dirname) });
+      archive.glob("*.jpg", { cwd: path.join(songsDirectory, dirname) });
+    }
+
+    osuFile.dirname = `${osuFile.dirname} Copy`;
+    await osuFile.generateOsz(archiveCallback);
+    setStatus("Done!", -1);
+  } catch (e) {
+    setStatus("An error occurred.", -1);
+    log(e);
+  }
+}
+
+async function generateOszWithSplit(osupath) {
+  log(`Generating split for ${osupath}`);
+  try {
+    setStatus("Reading .osu file...", 1);
+    let osuFile = await OsuFile.fromFile(osupath);
+    setStatus("Processing .osu file...");
+    let sectionFiles = await splitByBookmarks(osuFile);
+    setStatus("Generating .osu files...");
+    await Promise.all(sectionFiles.map(file => file.generateOsu()));
+    setStatus("Done!", -1);
+  } catch (e) {
+    setStatus("An error occurred.", -1);
+    log(e);
+  }
+}
+
+async function generateOszWithCombo(osupath, combo = 100) {
+  log(`Generating +${combo} combo edit for ${osupath}`);
+  generateOszWithFunction(osupath, addCombo, combo);
+}
+
+async function generateOszWithNoSVs(osupath) {
+  log(`Generating No SVs edit for ${osupath}`);
+  generateOszWithFunction(osupath, removeSVs);
+}
+
+async function generateOszWithNoLNs(osupath) {
+  log(`Generating No LNs edit for ${osupath}`);
+  generateOszWithFunction(osupath, removeLNs);
+}
+
 
 module.exports = {
   generateOszWithCS,
