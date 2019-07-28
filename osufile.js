@@ -3,7 +3,7 @@ const path = require("path");
 const archiver = require("archiver");
 const { log } = require("./renderer");
 const { TimingPoint } = require("./timingpoint");
-const { HitObject, HitCircle, Spinner, HoldNote } = require("./hitobject");
+const { HitObject, HitCircle, Slider, Spinner, HoldNote } = require("./hitobject");
 class OsuFile {
   /**
    * Reads an .osu file asynchronously.
@@ -85,14 +85,15 @@ class OsuFile {
       timingPointsEndIndex - timingPointsIndex - 1,
       ...(timingPoints
         .sort((a, b) => (a.offset - b.offset))
-        .map(e => e.toString()))
+        .map(e => e.toString())),
+      "",
     );
   }
 
   getTimingPointAt(time) {
     return this.getTimingPoints()
       .reverse()
-      .find(e => e.offset <= time);
+      .find(e => Math.floor(e.offset) <= time);
   }
 
   getMainBPM() {
@@ -138,9 +139,43 @@ class OsuFile {
       hitObjectsEndIndex - hitObjectsIndex - 1,
       ...(hitObjects
         .sort((a, b) => (a.time - b.time))
-        .map(e => e.toString()))
+        .map(e => e.toString())),
+      ""
     );
   }
+
+  getComboAt(time) {
+    const sliderMultiplier = parseFloat(this.getProperty("SliderMultiplier", "1.4"));
+    const sliderTickRate = parseFloat(this.getProperty("SliderTickRate", "1"));
+    const hitObjects = this.getHitObjects().filter(e => e.time < time);
+    let combo = 0;
+    for (const hitObject of hitObjects) {
+      if (hitObject instanceof HitCircle) {
+        combo += 1;
+      } else if (hitObject instanceof Slider) {
+        let svMultiplier = 1.0;
+        let timingPoint = this.getTimingPointAt(hitObject.time);
+        if (timingPoint.msPerBeat < 0) svMultiplier = -100.0 / timingPoint.msPerBeat;
+        const epsilon = 0.1;
+        let pixelsPerBeat = 0;
+        if (this.getVersion() < 8) {
+          pixelsPerBeat = sliderMultiplier * 100.0;
+        } else {
+          pixelsPerBeat = sliderMultiplier * 100.0 * svMultiplier;
+        }
+        let numBeats = hitObject.pixelLength * hitObject.repeat / pixelsPerBeat;
+        let ticks = Math.ceil((numBeats - epsilon) / hitObject.repeat * sliderTickRate) - 1;
+        ticks = Math.max(0, ticks);
+        combo += ticks * hitObject.repeat;
+        combo += hitObject.repeat;
+        combo += 1;
+      } else if (hitObject instanceof Spinner) {
+        combo += 1;
+      }
+    }
+    return combo;
+  }
+
 
   toString() {
     return this.lines.join("\n");
@@ -284,23 +319,20 @@ async function setRate(osuFile, rate) {
   let timingPoints = osuFile.getTimingPoints();
   for (let point of timingPoints) {
     if (point.msPerBeat > 0) {
-      point.msPerBeat = Math.round(point.msPerBeat / rate);
+      point.msPerBeat = point.msPerBeat / rate;
     }
-    point.offset = Math.round(point.offset / rate);
+    point.offset = point.offset / rate;
   };
   osuFile.setTimingPoints(timingPoints);
 
   let hitObjects = osuFile.getHitObjects();
-  console.log(hitObjects.map(e => e.time));
   for (let object of hitObjects) {
     if (object instanceof Spinner || object instanceof HoldNote) {
       object.endTime = Math.round(object.endTime / rate);
     }
     object.time = Math.round(object.time / rate);
   }
-  console.log(hitObjects.map(e => e.time));
   osuFile.setHitObjects(hitObjects);
-  console.log(osuFile.getHitObjects().map(e => e.time));
 
   osuFile.appendToDiffName(`${rate}x`);
   return osuFile;
@@ -383,18 +415,22 @@ async function addCombo(osuFile, combo = 100) {
     let timingPoints = osuFile.getTimingPoints();
     let lastTimingPoint = osuFile.getTimingPointAt(firstObject.time);
 
-    if (lastTimingPoint.msPerBeat > 0 && lastTimingPoint.offset !== timingPoints[0].offset) {
-      lastTimingPoint.msPerBeat = -100;
-      lastTimingPoint.inherited = 0;
-    }
     let silentPoint = lastTimingPoint.clone();
     silentPoint.offset = spinnerTime;
     silentPoint.volume = 0;
+    if (lastTimingPoint.inherited && lastTimingPoint.offset !== timingPoints[0].offset) {
+      silentPoint.msPerBeat = -100;
+      silentPoint.inherited = 0;
+    }
     timingPoints.push(silentPoint);
 
     if (lastTimingPoint.offset < firstObject.time) {
       let startPoint = lastTimingPoint.clone();
       startPoint.offset = firstObject.time;
+      if (lastTimingPoint.inherited && lastTimingPoint.offset !== timingPoints[0].offset) {
+        startPoint.msPerBeat = -100;
+        startPoint.inherited = 0;
+      }
       timingPoints.push(startPoint);
     }
 

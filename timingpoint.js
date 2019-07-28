@@ -2,7 +2,7 @@ class TimingPoint {
   static fromString(str) {
     let [offset, msPerBeat, meter, set, index, volume, inherited, kiai] = str.split(",");
     return new TimingPoint(
-      parseInt(offset),
+      parseFloat(offset),
       parseFloat(msPerBeat),
       parseInt(meter),
       parseInt(set),

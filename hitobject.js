@@ -82,8 +82,8 @@ exports.HitCircle = HitCircle;
 
 class Slider extends HitObject {
   constructor(x = 256, y = 192, time = 0, type = 2, hitSound = 0, sliderType = "L",
-    curvePoints = ["256:193"], repeat = 0, pixelLength = 1, edgeHitsounds = "0",
-    edgeAdditions = "0", extras = "0:0:0:0:") {
+    curvePoints = ["256:193"], repeat = 0, pixelLength = 1, edgeHitsounds = "",
+    edgeAdditions = "", extras = "") {
     // TODO: default value for edgeHitsounds
     super(x, y, time, type, hitSound, extras);
     this.sliderType = sliderType;
@@ -95,19 +95,20 @@ class Slider extends HitObject {
   }
 
   toString() {
-    return [
+    let arr = [
       this.x,
       this.y,
       this.time,
       this.type,
       this.hitSound,
-      [this.sliderType, ...this.curvePoints].join("|"),
+      [this.sliderType, ...(this.curvePoints)].join("|"),
       this.repeat,
       this.pixelLength,
-      this.edgeHitsounds,
-      this.edgeAdditions,
-      this.extras
-    ].join(",");
+    ]
+    if (this.edgeHitsounds) arr.push(this.edgeHitsounds);
+    if (this.edgeAdditions) arr.push(this.edgeAdditions);
+    if (this.extras) arr.push(this.extras);
+    return arr.join(",");
   }
 }
 exports.Slider = Slider;

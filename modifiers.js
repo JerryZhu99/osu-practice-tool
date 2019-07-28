@@ -160,6 +160,30 @@ async function generateOszWithSplit(osupath) {
   }
 }
 
+async function generateOszWithComboSplit(osupath) {
+  log(`Generating added combo split for ${osupath}`);
+  try {
+    setStatus("Reading .osu file...", 1);
+    const osuFile = await OsuFile.fromFile(osupath);
+    setStatus("Processing .osu file...");
+    const sectionFiles = await splitByBookmarks(osuFile);
+    for (const sectionFile of sectionFiles) {
+      const firstObject = sectionFile.getHitObjects()[0]
+      if (firstObject) {
+        const startTime = firstObject.time;
+        const combo = Math.min(osuFile.getComboAt(startTime), 200);
+        await addCombo(sectionFile, combo);
+      }
+    }
+    setStatus("Generating .osu files...");
+    await Promise.all(sectionFiles.map(file => file.generateOsu()));
+    setStatus("Done!", -1);
+  } catch (e) {
+    setStatus("An error occurred.", -1);
+    log(e);
+  }
+}
+
 async function generateOszWithCombo(osupath, combo = 100) {
   log(`Generating +${combo} combo edit for ${osupath}`);
   generateOszWithFunction(osupath, addCombo, combo);
@@ -185,6 +209,7 @@ module.exports = {
   generateOszWithCopy,
   generateOszWithSplit,
   generateOszWithCombo,
+  generateOszWithComboSplit,
   generateOszWithNoSVs,
   generateOszWithNoLNs,
 }
