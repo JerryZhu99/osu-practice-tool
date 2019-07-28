@@ -345,10 +345,10 @@ exports.setRate = setRate;
  */
 async function splitByBookmarks(osuFile) {
   let difficulty = osuFile.getProperty("Version");
-  if (!difficulty.includes("(Copy)")) {
-    throw new Error("The map is not a copy.");
+  if (!difficulty.includes("(Split)")) {
+    throw new Error("The map is not marked for split.");
   }
-  difficulty = `${difficulty.split("(Copy)")[0]}`;
+  difficulty = `${difficulty.split("(Split)")[0]}`;
   const bookmarks = (osuFile.getProperty("Bookmarks") || "")
     .split(",")
     .filter(e => (e.trim().length > 0))
