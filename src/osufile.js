@@ -357,7 +357,6 @@ async function splitByBookmarks(osuFile) {
     throw new Error("No bookmarks set!.");
   }
   const sections = [0, ...bookmarks.sort((a, b) => (a - b)), Infinity];
-  const hitObjectsIndex = osuFile.lines.findIndex(e => e.startsWith("[HitObjects]"));
   const files = [];
   for (let i = 1; i < sections.length; i++) {
     const start = sections[i - 1];
@@ -366,16 +365,8 @@ async function splitByBookmarks(osuFile) {
     sectionFile.setProperty("Version", `${difficulty} (${i}/${sections.length - 1})`);
     sectionFile.setProperty("BeatmapID", 0);
     sectionFile.appendToDiffName(i);
-    sectionFile.lines = sectionFile.lines.filter((line, index) => {
-      if (index > hitObjectsIndex) {
-        let [x, y, time, ...rest] = line.split(",");
-        time = parseInt(time);
-        return (start <= time && time <= end);
-      }
-      else {
-        return true;
-      }
-    });
+    sectionFile.setHitObjects(sectionFile.getHitObjects()
+      .filter(({ time }) => (start <= time && time <= end)));
     files.push(sectionFile);
   }
   return files;
