@@ -321,7 +321,7 @@ async function setRate(osuFile, rate) {
     if (point.msPerBeat > 0) {
       point.msPerBeat = point.msPerBeat / rate;
     }
-    point.offset = point.offset / rate;
+    point.offset = Math.round(point.offset / rate);
   };
   osuFile.setTimingPoints(timingPoints);
 
