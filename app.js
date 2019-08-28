@@ -1,4 +1,5 @@
 const net = require('net');
+const path = require('path');
 const ioHook = require('iohook');
 const activeWin = require('active-win');
 
@@ -68,7 +69,7 @@ const key = (name) => name.charCodeAt(0);
 
 ioHook.on("keypress", async event => {
   const window = await activeWin();
-  if (!window || window.title.trim() !== 'osu!') return;
+  if (!window || path.parse(window.owner.path).base !== 'osu!.exe') return;
   if (event.altKey && currentFile) {
     const isNumber = (event.rawcode >= key('0') && event.rawcode <= key('9'))
       || event.rawcode === key('T');
